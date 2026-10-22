@@ -5,4 +5,4 @@ python-dotenv==1.0.1
 pydantic==2.9.2
 dnspython==2.7.0
 beautifulsoup4==4.12.3
-pytest==8.3.3
+pytest==9.0.3
