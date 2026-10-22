@@ -70,11 +70,24 @@
           <button onclick="simulateAttack('verify-human-cloudflare-cdn.xyz')" class="bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 px-2.5 py-1 rounded font-mono transition">ClickFix Clipboard PowerShell Payload</button>
           <button onclick="simulateAttack('microsoft-oauth-login-portal.icu')" class="bg-purple-500/15 hover:bg-purple-500/25 text-purple-300 border border-purple-500/30 px-2.5 py-1 rounded font-mono transition">BitB OAuth Deception & Webhook Exfil</button>
           <button onclick="simulateAttack('github.com')" class="bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 px-2.5 py-1 rounded font-mono transition">Verified Benign Baseline (github.com)</button>
+          <button onclick="simulateAttack('<script>alert(1)</script>')" class="bg-pink-500/15 hover:bg-pink-500/25 text-pink-300 border border-pink-500/30 px-2.5 py-1 rounded font-mono transition">🍯 Test XSS/SSRF Honeypot Trap 😂</button>
         </div>
       </div>
 
       <!-- WAF / SSRF Security Alert Box -->
-      <div id="wafAlertBox" class="hidden bg-rose-950/80 border border-rose-500 text-rose-200 p-4 rounded-xl mb-6 font-mono text-xs"></div>
+      <div id="wafAlertBox" class="hidden bg-gradient-to-r from-rose-950/95 via-amber-950/90 to-purple-950/95 border-2 border-amber-400 p-6 rounded-2xl mb-6 shadow-2xl">
+        <div class="flex items-center gap-4">
+          <div class="text-5xl animate-bounce">😂🍯🤡</div>
+          <div class="space-y-1 font-mono">
+            <h3 id="hpTitle" class="text-xl font-black text-amber-300 tracking-wide">LOL 😂 Nice Try! You Stepped Into the PhishMatrix Honeypot!</h3>
+            <p id="hpDetail" class="text-sm text-rose-200 font-bold"></p>
+            <div class="text-xs text-slate-300 pt-1">
+              <span class="bg-rose-500/30 border border-rose-400 px-2 py-0.5 rounded text-rose-200">Attack Vector: <strong id="hpVector"></strong></span>
+              <span class="ml-2 bg-slate-900 border border-slate-700 px-2 py-0.5 rounded text-cyan-300">Captured Payload: <code id="hpPayload"></code></span>
+            </div>
+          </div>
+        </div>
+      </div>
 
       <!-- Live Terminal Matrix Loader -->
       <div id="loaderBox" class="hidden cyber-card p-6 rounded-2xl mb-6 font-mono text-xs space-y-2 border-cyan-500/40">
@@ -494,8 +507,11 @@ github.com</textarea>
           body: JSON.stringify({ url })
         });
         const data = await res.json();
-        if (!res.ok) {
-          wafBox.textContent = '🛡️ [SECURITY SHIELD TRIGGERED]: ' + (data.detail || 'Request blocked by WAF.');
+        if (!res.ok || data.honeypot_triggered) {
+          document.getElementById('hpTitle').textContent = data.taunt_title || 'LOL 😂 Nice Try! PhishMatrix Honeypot Triggered! 🍯🤡';
+          document.getElementById('hpDetail').textContent = data.detail || 'Malicious payload intercepted and defanged.';
+          document.getElementById('hpVector').textContent = data.attack_type || 'WAF Injection Probe';
+          document.getElementById('hpPayload').textContent = data.payload || url;
           wafBox.classList.remove('hidden');
           return;
         }
@@ -670,8 +686,8 @@ github.com</textarea>
       const soc = d.soc_arsenal;
       document.getElementById('socYara').textContent = soc.yara_rule;
       document.getElementById('socSigma').textContent = soc.sigma_rule;
-      document.getElementById('socSuricata').textContent = soc.suricata_rule + '\n\n# Linux UFW Block:\n' + soc.ufw_command;
-      document.getElementById('socSplunk').textContent = '# Splunk SPL:\n' + soc.splunk_spl + '\n\n# Microsoft Sentinel KQL:\n' + soc.sentinel_kql;
+      document.getElementById('socSuricata').textContent = soc.suricata_rule + '\n\n# Cloudflare WAF Expression:\n' + (soc.cloudflare_waf || '') + '\n\n# ModSecurity OWASP CRS Rule:\n' + (soc.modsecurity_rule || '') + '\n\n# Zeek (Bro) Script:\n' + (soc.zeek_script || '') + '\n\n' + soc.ufw_command + '\n\n' + (soc.powershell_defender || '');
+      document.getElementById('socSplunk').textContent = '# Splunk SPL:\n' + soc.splunk_spl + '\n\n# Microsoft Sentinel KQL:\n' + soc.sentinel_kql + '\n\n# CrowdStrike Falcon LogScale (CQL):\n' + (soc.crowdstrike_cql || '') + '\n\n# Elastic Kibana KQL:\n' + (soc.elastic_kql || '');
       document.getElementById('socTakedown').textContent = soc.takedown_notice;
 
       renderThreatGraph(d);
