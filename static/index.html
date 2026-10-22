@@ -3,19 +3,16 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>PhishMatrix v3.0 // Enterprise Threat Intelligence & SOAR Platform</title>
+  <title>PhishMatrix v4.0 // Hardened Enterprise SOAR & Threat Intelligence Platform</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
-    body { font-family: 'Inter', sans-serif; background-color: #050811; color: #e2e8f0; }
+    body { font-family: 'Inter', sans-serif; background-color: #04070f; color: #e2e8f0; }
     .font-mono { font-family: 'JetBrains Mono', monospace; }
-    .cyber-card { background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(51, 65, 85, 0.7); backdrop-filter: blur(12px); }
-    .cyber-glow { box-shadow: 0 0 25px rgba(6, 182, 212, 0.15); }
-    @media print {
-      .no-print { display: none !important; }
-      body { background: #0f172a !important; color: #f8fafc !important; }
-    }
+    .cyber-card { background: rgba(12, 19, 36, 0.88); border: 1px solid rgba(51, 65, 85, 0.75); backdrop-filter: blur(12px); }
+    .cyber-glow { box-shadow: 0 0 30px rgba(6, 182, 212, 0.16); }
+    @media print { .no-print { display: none !important; } }
   </style>
 </head>
 <body class="min-h-screen selection:bg-cyan-500 selection:text-slate-950">
@@ -25,29 +22,28 @@
     <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap justify-between items-center gap-3">
       <div class="flex items-center gap-3">
         <div class="h-3 w-3 rounded-full bg-emerald-400 animate-pulse"></div>
-        <span class="font-extrabold text-xl tracking-wider text-cyan-400">PHISH<span class="text-white">MATRIX</span> <span class="text-xs font-mono bg-cyan-500/10 text-cyan-300 border border-cyan-500/30 px-2 py-0.5 rounded">v3.0 SOAR</span></span>
+        <span class="font-extrabold text-xl tracking-wider text-cyan-400">PHISH<span class="text-white">MATRIX</span> <span class="text-xs font-mono bg-cyan-500/15 text-cyan-300 border border-cyan-500/40 px-2 py-0.5 rounded">v4.0 HARDENED SOAR</span></span>
       </div>
       <div class="flex items-center gap-2 text-xs font-mono">
-        <span class="hidden md:inline-block bg-slate-900 border border-slate-800 px-3 py-1.5 rounded text-slate-400">8 Threat Feeds: <strong class="text-emerald-400">ONLINE</strong></span>
-        <span class="hidden md:inline-block bg-slate-900 border border-slate-800 px-3 py-1.5 rounded text-slate-400">AI Failover Engine: <strong class="text-cyan-400">ACTIVE</strong></span>
-        <a href="/docs" target="_blank" class="bg-slate-900 hover:bg-slate-800 border border-slate-700 px-3 py-1.5 rounded text-cyan-300 transition">Swagger API</a>
-        <button onclick="window.print()" class="bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 px-3 py-1.5 rounded transition">Export PDF Report</button>
+        <span class="hidden lg:inline-block bg-slate-900 border border-slate-800 px-2.5 py-1.5 rounded text-slate-400">16 Threat Feeds: <strong class="text-emerald-400">ONLINE</strong></span>
+        <span class="hidden md:inline-block bg-emerald-500/10 border border-emerald-500/30 px-2.5 py-1.5 rounded text-emerald-300">🛡️ WAF + SSRF + Prompt Shield: <strong>ACTIVE</strong></span>
+        <a href="/docs" target="_blank" class="bg-slate-900 hover:bg-slate-800 border border-slate-700 px-3 py-1.5 rounded text-cyan-300 transition">OpenAPI</a>
+        <button onclick="window.print()" class="bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 px-3 py-1.5 rounded transition">Export PDF</button>
       </div>
     </div>
   </nav>
 
   <main class="max-w-7xl mx-auto px-4 py-8">
-    <!-- Hero Header -->
     <div class="text-center mb-7">
       <h1 class="text-3xl md:text-5xl font-black tracking-tight text-white">
-        Autonomous <span class="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-teal-300 to-indigo-400">Threat Intelligence</span> & Phishing Triage
+        Enterprise <span class="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-teal-300 to-indigo-400">Threat Intelligence</span> & Phishing Orchestrator
       </h1>
-      <p class="text-slate-400 mt-2 text-sm max-w-3xl mx-auto">
-        8-Engine Multi-Feed Correlation • Zero-Day Lexical & Entropy Heuristics • Deep RDAP/Port-43 WHOIS • DarkWeb & Infostealer Recon • C2 Telemetry Unmasker • Failover AI Threat Analyst
+      <p class="text-slate-400 mt-2 text-sm max-w-4xl mx-auto">
+        VirusTotal v3 • Google Web Risk • AbuseIPDB • URLScan • AlienVault OTX • Pulsedive • GreyNoise • Shodan • Abuse.ch URLhaus & ThreatFox • Maltrail GitHub • Project Honey Pot HTTP:BL • crt.sh CT Logs • Failover AI Analyst
       </p>
     </div>
 
-    <!-- Main Workspace Mode Switcher -->
+    <!-- Workspace Switcher -->
     <div class="flex flex-wrap justify-center gap-2 mb-6 no-print">
       <button onclick="switchWorkspace('url')" id="ws-btn-url" class="px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider bg-cyan-500 text-slate-950 transition">1. URL & Domain Investigation</button>
       <button onclick="switchWorkspace('email')" id="ws-btn-email" class="px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider bg-slate-900 text-slate-300 border border-slate-800 hover:border-slate-700 transition">2. Email Header & EML Triage</button>
@@ -57,7 +53,6 @@
 
     <!-- WORKSPACE 1: URL SCANNER -->
     <div id="ws-url">
-      <!-- Search Bar -->
       <div class="cyber-card cyber-glow p-3 rounded-2xl mb-4 no-print">
         <div class="flex flex-col md:flex-row gap-3">
           <input id="urlInput" type="text" placeholder="Enter suspicious URL, domain, or IPv4 (e.g., http://testsafebrowsing.appspot.com/s/phishing.html)..."
@@ -69,7 +64,6 @@
           </button>
         </div>
 
-        <!-- Professional Simulation Vectors -->
         <div class="flex flex-wrap items-center gap-2 mt-3 pt-2 border-t border-slate-800/80 text-xs">
           <span class="text-slate-400 font-mono">⚡ Threat Simulation Vectors:</span>
           <button onclick="simulateAttack('sbi-kyc-update-pan.top')" class="bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 border border-rose-500/30 px-2.5 py-1 rounded font-mono transition">Credential Harvesting & Telegram C2 Exfil</button>
@@ -79,11 +73,14 @@
         </div>
       </div>
 
+      <!-- WAF / SSRF Security Alert Box -->
+      <div id="wafAlertBox" class="hidden bg-rose-950/80 border border-rose-500 text-rose-200 p-4 rounded-xl mb-6 font-mono text-xs"></div>
+
       <!-- Live Terminal Matrix Loader -->
       <div id="loaderBox" class="hidden cyber-card p-6 rounded-2xl mb-6 font-mono text-xs space-y-2 border-cyan-500/40">
         <div class="text-cyan-400 font-bold mb-2 flex items-center gap-2">
           <span class="animate-spin inline-block w-4 h-4 border-2 border-cyan-400 border-t-transparent rounded-full"></span>
-          EXECUTING 6-LAYER PARALLEL THREAT ORCHESTRATION...
+          EXECUTING 16-ENGINE PARALLEL THREAT ORCHESTRATION...
         </div>
         <div id="loaderSteps" class="space-y-1 text-slate-300"></div>
       </div>
@@ -138,7 +135,7 @@
           </div>
         </div>
 
-        <!-- FAILOVER AI SOC ANALYST CARD (Pure Professional English) -->
+        <!-- FAILOVER AI SOC ANALYST CARD -->
         <div class="cyber-card p-6 rounded-2xl border-cyan-500/30">
           <div class="flex flex-wrap justify-between items-center gap-3 mb-4 border-b border-slate-800 pb-3">
             <div class="flex items-center gap-2">
@@ -155,7 +152,6 @@
             <p id="aiSocBox" class="text-sm text-slate-200 leading-relaxed font-mono"></p>
           </div>
 
-          <!-- Behavioral & Social Engineering Vector Telemetry -->
           <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4 pt-4 border-t border-slate-800/80 text-xs font-mono">
             <div>
               <div class="flex justify-between mb-1"><span>Urgency Lure</span><span id="radUrgency">0%</span></div>
@@ -176,17 +172,17 @@
           </div>
         </div>
 
-        <!-- 8-ENGINE THREAT INTEL MATRIX -->
+        <!-- 16-ENGINE ENTERPRISE THREAT INTEL MATRIX -->
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div class="cyber-card p-4 rounded-xl">
             <span class="text-[11px] font-mono uppercase text-slate-400">1. VirusTotal v3</span>
             <div id="engVt" class="text-2xl font-black mt-1">0 / 92</div>
-            <div id="engVtSub" class="text-xs text-slate-400 mt-1 font-mono"></div>
+            <div id="engVtSub" class="text-xs text-slate-400 mt-1 font-mono truncate"></div>
           </div>
           <div class="cyber-card p-4 rounded-xl">
             <span class="text-[11px] font-mono uppercase text-slate-400">2. Google Web Risk</span>
             <div id="engWr" class="text-2xl font-black mt-1">CLEAN</div>
-            <div id="engWrSub" class="text-xs text-slate-400 mt-1 font-mono"></div>
+            <div id="engWrSub" class="text-xs text-slate-400 mt-1 font-mono truncate"></div>
           </div>
           <div class="cyber-card p-4 rounded-xl">
             <span class="text-[11px] font-mono uppercase text-slate-400">3. AbuseIPDB</span>
@@ -196,27 +192,67 @@
           <div class="cyber-card p-4 rounded-xl">
             <span class="text-[11px] font-mono uppercase text-slate-400">4. URLScan.io Sandbox</span>
             <div id="engUs" class="text-lg font-bold mt-1 truncate">Ready</div>
-            <a id="engUsLink" href="#" target="_blank" class="text-xs text-cyan-400 underline font-mono mt-1 inline-block">Open Full Sandbox ↗</a>
+            <a id="engUsLink" href="#" target="_blank" rel="noopener noreferrer" class="text-xs text-cyan-400 underline font-mono mt-1 inline-block">Open Full Sandbox ↗</a>
           </div>
           <div class="cyber-card p-4 rounded-xl">
-            <span class="text-[11px] font-mono uppercase text-slate-400">5. HudsonRock DarkWeb</span>
-            <div id="engHr" class="text-xl font-bold mt-1">0 Leaks</div>
-            <div id="engHrSub" class="text-xs text-slate-400 mt-1 font-mono">Infostealer Telemetry</div>
+            <span class="text-[11px] font-mono uppercase text-slate-400">5. Abuse.ch URLhaus</span>
+            <div id="engUh" class="text-xl font-bold mt-1">CLEAN</div>
+            <div id="engUhSub" class="text-xs text-slate-400 mt-1 font-mono truncate">Authenticated Feed</div>
           </div>
           <div class="cyber-card p-4 rounded-xl">
-            <span class="text-[11px] font-mono uppercase text-slate-400">6. Abuse.ch ThreatFox/URLhaus</span>
-            <div id="engC2" class="text-xl font-bold mt-1">No C2 Hit</div>
-            <div id="engC2Sub" class="text-xs text-slate-400 mt-1 font-mono">Botnet & Payload Feed</div>
+            <span class="text-[11px] font-mono uppercase text-slate-400">6. Abuse.ch ThreatFox</span>
+            <div id="engTf" class="text-xl font-bold mt-1">CLEAN</div>
+            <div id="engTfSub" class="text-xs text-slate-400 mt-1 font-mono truncate">Botnet C2 IOC Feed</div>
           </div>
           <div class="cyber-card p-4 rounded-xl">
-            <span class="text-[11px] font-mono uppercase text-slate-400">7. RDAP + Port-43 WHOIS</span>
+            <span class="text-[11px] font-mono uppercase text-slate-400">7. Maltrail GitHub Repo</span>
+            <div id="engMt" class="text-xl font-bold mt-1">CLEAN</div>
+            <div id="engMtSub" class="text-xs text-slate-400 mt-1 font-mono truncate">stamparm/maltrail</div>
+          </div>
+          <div class="cyber-card p-4 rounded-xl">
+            <span class="text-[11px] font-mono uppercase text-slate-400">8. Project Honey Pot</span>
+            <div id="engHp" class="text-xl font-bold mt-1">0 Score</div>
+            <div id="engHpSub" class="text-xs text-slate-400 mt-1 font-mono truncate">HTTP:BL DNS Blacklist</div>
+          </div>
+          <div class="cyber-card p-4 rounded-xl">
+            <span class="text-[11px] font-mono uppercase text-slate-400">9. AlienVault OTX</span>
+            <div id="engOtx" class="text-xl font-bold mt-1">0 Pulses</div>
+            <div id="engOtxSub" class="text-xs text-slate-400 mt-1 font-mono truncate">Global Threat Pulses</div>
+          </div>
+          <div class="cyber-card p-4 rounded-xl">
+            <span class="text-[11px] font-mono uppercase text-slate-400">10. Pulsedive Intel</span>
+            <div id="engPd" class="text-xl font-bold mt-1">LOW</div>
+            <div id="engPdSub" class="text-xs text-slate-400 mt-1 font-mono truncate">Community Risk Feed</div>
+          </div>
+          <div class="cyber-card p-4 rounded-xl">
+            <span class="text-[11px] font-mono uppercase text-slate-400">11. GreyNoise Intel</span>
+            <div id="engGn" class="text-xl font-bold mt-1">Unobserved</div>
+            <div id="engGnSub" class="text-xs text-slate-400 mt-1 font-mono truncate">Scanner / Riot Sensor</div>
+          </div>
+          <div class="cyber-card p-4 rounded-xl">
+            <span class="text-[11px] font-mono uppercase text-slate-400">12. Shodan Host Recon</span>
+            <div id="engSho" class="text-xl font-bold mt-1">Ports: 80, 443</div>
+            <div id="engShoSub" class="text-xs text-slate-400 mt-1 font-mono truncate">Open Ports & CVEs</div>
+          </div>
+          <div class="cyber-card p-4 rounded-xl">
+            <span class="text-[11px] font-mono uppercase text-slate-400">13. crt.sh CT Logs</span>
+            <div id="engCrt" class="text-xl font-bold mt-1">Verified</div>
+            <div id="engCrtSub" class="text-xs text-slate-400 mt-1 font-mono truncate">Certificate Transparency</div>
+          </div>
+          <div class="cyber-card p-4 rounded-xl">
+            <span class="text-[11px] font-mono uppercase text-slate-400">14. HudsonRock DarkWeb</span>
+            <div id="engHr" class="text-xl font-bold mt-1">0 Records</div>
+            <div id="engHrSub" class="text-xs text-slate-400 mt-1 font-mono truncate">Infostealer Logs</div>
+          </div>
+          <div class="cyber-card p-4 rounded-xl">
+            <span class="text-[11px] font-mono uppercase text-slate-400">15. RDAP + Port-43 WHOIS</span>
             <div id="engWhois" class="text-lg font-bold mt-1 truncate">Verified</div>
             <div id="engWhoisSub" class="text-xs text-slate-400 mt-1 font-mono truncate"></div>
           </div>
           <div class="cyber-card p-4 rounded-xl">
-            <span class="text-[11px] font-mono uppercase text-slate-400">8. Zero-Day Heuristics</span>
+            <span class="text-[11px] font-mono uppercase text-slate-400">16. Zero-Day Heuristics</span>
             <div id="engHeur" class="text-2xl font-black mt-1">0 / 95</div>
-            <div id="engHeurSub" class="text-xs text-slate-400 mt-1 font-mono">Entropy & Lexical Score</div>
+            <div id="engHeurSub" class="text-xs text-slate-400 mt-1 font-mono truncate">Entropy & Lexical Score</div>
           </div>
         </div>
 
@@ -225,12 +261,11 @@
           <div class="flex flex-wrap border-b border-slate-800 bg-slate-950/60 no-print">
             <button onclick="switchTab('graph')" id="tab-btn-graph" class="px-5 py-3 text-xs font-mono font-bold uppercase border-b-2 border-cyan-400 text-cyan-300">🕸️ Attack Topology Graph & Screenshot</button>
             <button onclick="switchTab('whois')" id="tab-btn-whois" class="px-5 py-3 text-xs font-mono font-bold uppercase text-slate-400 hover:text-slate-200">🌐 Deep WHOIS, SSL & DNS Forensics</button>
-            <button onclick="switchTab('dom')" id="tab-btn-dom" class="px-5 py-3 text-xs font-mono font-bold uppercase text-slate-400 hover:text-slate-200">🕵️‍♂️ DOM Hunter, C2 Unmasker & DarkWeb</button>
+            <button onclick="switchTab('dom')" id="tab-btn-dom" class="px-5 py-3 text-xs font-mono font-bold uppercase text-slate-400 hover:text-slate-200">🕵️‍♂️ DOM Hunter, C2 Unmasker & crt.sh</button>
             <button onclick="switchTab('soc')" id="tab-btn-soc" class="px-5 py-3 text-xs font-mono font-bold uppercase text-slate-400 hover:text-slate-200">🛡️ Blue-Team Rules (YARA/Sigma/SPL) & Takedown</button>
           </div>
 
           <div class="p-6">
-            <!-- Sub-Tab 1: Interactive Graph + Live Screenshot -->
             <div id="tab-graph" class="grid grid-cols-1 lg:grid-cols-3 gap-6">
               <div class="lg:col-span-2">
                 <div class="flex justify-between items-center mb-2">
@@ -245,13 +280,12 @@
                   <img id="sandboxImg" src="" alt="Target Preview" class="w-full h-64 object-cover rounded-lg border border-slate-800/80" />
                   <div class="flex justify-between items-center px-1 pt-1 text-[11px] font-mono text-slate-400">
                     <span id="sandboxTitle" class="truncate"></span>
-                    <a id="shodanFaviconLink" href="#" target="_blank" class="text-cyan-400 hover:underline whitespace-nowrap ml-2">Hunt Favicon on Shodan ↗</a>
+                    <a id="shodanFaviconLink" href="#" target="_blank" rel="noopener noreferrer" class="text-cyan-400 hover:underline whitespace-nowrap ml-2">Hunt Favicon on Shodan ↗</a>
                   </div>
                 </div>
               </div>
             </div>
 
-            <!-- Sub-Tab 2: Deep WHOIS, SSL & DNS -->
             <div id="tab-whois" class="hidden grid grid-cols-1 md:grid-cols-3 gap-6 font-mono text-xs">
               <div class="bg-slate-950/80 p-4 rounded-xl border border-slate-800 space-y-2">
                 <h4 class="text-cyan-400 font-bold uppercase border-b border-slate-800 pb-1.5">RDAP & Port-43 WHOIS</h4>
@@ -283,7 +317,6 @@
               </div>
             </div>
 
-            <!-- Sub-Tab 3: DOM Hunter, Counter-Offensive Telegram Unmasker & DarkWeb -->
             <div id="tab-dom" class="hidden grid grid-cols-1 md:grid-cols-2 gap-6 font-mono text-xs">
               <div class="bg-slate-950/80 p-4 rounded-xl border border-slate-800 space-y-3">
                 <h4 class="text-rose-400 font-bold uppercase border-b border-slate-800 pb-1.5">Counter-Offensive C2 & Exfiltration Unmasker</h4>
@@ -298,10 +331,11 @@
               </div>
 
               <div class="bg-slate-950/80 p-4 rounded-xl border border-slate-800 space-y-3">
-                <h4 class="text-purple-400 font-bold uppercase border-b border-slate-800 pb-1.5">DarkWeb, Tor & Certificate Transparency (crt.sh)</h4>
+                <h4 class="text-purple-400 font-bold uppercase border-b border-slate-800 pb-1.5">DarkWeb, Maltrail, HTTP:BL & crt.sh Subdomains</h4>
                 <div><span class="text-slate-500">Tor (.onion) Gateway:</span> <span id="dwTor"></span></div>
                 <div><span class="text-slate-500">HudsonRock Stealer Logs:</span> <span id="dwStealer" class="text-amber-300"></span></div>
                 <div><span class="text-slate-500">Abuse.ch C2 Verdict:</span> <span id="dwC2" class="text-rose-300"></span></div>
+                <div><span class="text-slate-500">Maltrail & HoneyPot:</span> <span id="dwMtHp" class="text-cyan-300"></span></div>
                 <div>
                   <span class="text-slate-500 block mb-1">Discovered Shadow Subdomains (crt.sh OSINT):</span>
                   <div id="dwSubs" class="flex flex-wrap gap-1.5 mt-1"></div>
@@ -309,7 +343,6 @@
               </div>
             </div>
 
-            <!-- Sub-Tab 4: Blue-Team SOC Rules & Takedown Notice -->
             <div id="tab-soc" class="hidden space-y-4 font-mono text-xs">
               <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
@@ -350,7 +383,7 @@
           <h3 class="text-lg font-bold text-cyan-400">Raw Email Header & Body Spoofing Analyzer</h3>
           <button onclick="loadSampleEmail()" class="text-xs font-mono bg-slate-800 hover:bg-slate-700 text-cyan-300 px-3 py-1.5 rounded border border-slate-700">Load Sample Spoofed Enterprise Email</button>
         </div>
-        <textarea id="emailInput" rows="7" placeholder="Paste raw email headers and body (Received, From, Return-Path, Authentication-Results)..."
+        <textarea id="emailInput" rows="7" placeholder="Paste raw email headers and body..."
                   class="w-full bg-slate-950 border border-slate-800 rounded-xl p-4 font-mono text-xs text-slate-200 focus:outline-none focus:border-cyan-500"></textarea>
         <button onclick="runEmailScan()" class="mt-3 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold px-6 py-2.5 rounded-xl text-sm transition">Analyze Email Headers & Extract Links</button>
       </div>
@@ -375,24 +408,33 @@ github.com</textarea>
       <div class="cyber-card p-6 rounded-2xl font-mono text-xs space-y-4">
         <h3 class="text-lg font-bold text-cyan-400">Kali Linux Terminal Direct Mode (curl ASCII Output)</h3>
         <p class="text-slate-300">Investigate any suspicious URL directly from your terminal without opening a browser:</p>
-        <pre class="bg-slate-950 p-4 rounded-xl border border-slate-800 text-emerald-400 overflow-x-auto">curl -s "http://127.0.0.1:8000/cli?url=verify-human-cloudflare-cdn.xyz"</pre>
+        <pre class="bg-slate-950 p-4 rounded-xl border border-slate-800 text-emerald-400 overflow-x-auto">curl -s "https://phish-matrix-71kd.vercel.app/cli?url=verify-human-cloudflare-cdn.xyz"</pre>
       </div>
     </div>
-
   </main>
 
   <footer class="max-w-7xl mx-auto px-4 py-8 mt-12 border-t border-slate-900 text-center text-xs text-slate-500 font-mono">
-    PhishMatrix v3.0 Enterprise SOAR Platform • Engineered by <a href="https://github.com/ayushkp930" target="_blank" class="text-cyan-400 hover:underline">Ayush Kumar Patel (github.com/ayushkp930)</a>
+    PhishMatrix v4.0 Hardened Enterprise SOAR Platform • MIT Licensed • Engineered by <a href="https://github.com/ayushkp930" target="_blank" rel="noopener noreferrer" class="text-cyan-400 hover:underline">Ayush Kumar Patel (github.com/ayushkp930)</a>
   </footer>
 
   <script>
     let currentData = null;
 
+    // Strict XSS Sanitizer for all dynamic DOM rendering
+    function escapeHTML(str) {
+      if (str === null || str === undefined) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
     function switchWorkspace(ws) {
       ['url', 'email', 'bulk', 'cli'].forEach(id => {
         document.getElementById('ws-' + id).classList.add('hidden');
-        const btn = document.getElementById('ws-btn-' + id);
-        btn.className = 'px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider bg-slate-900 text-slate-300 border border-slate-800 hover:border-slate-700 transition';
+        document.getElementById('ws-btn-' + id).className = 'px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider bg-slate-900 text-slate-300 border border-slate-800 hover:border-slate-700 transition';
       });
       document.getElementById('ws-' + ws).classList.remove('hidden');
       document.getElementById('ws-btn-' + ws).className = 'px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider bg-cyan-500 text-slate-950 transition';
@@ -419,24 +461,30 @@ github.com</textarea>
       const btn = document.getElementById('scanBtn');
       const loader = document.getElementById('loaderBox');
       const steps = document.getElementById('loaderSteps');
+      const wafBox = document.getElementById('wafAlertBox');
+
+      wafBox.classList.add('hidden');
       btn.disabled = true;
       btn.innerText = 'Orchestrating...';
       document.getElementById('resultsContainer').classList.add('hidden');
       loader.classList.remove('hidden');
 
       const logLines = [
-        '[✓] Normalizing IOC & engaging SSRF Loopback Guard...',
-        '[✓] Unrolling HTTP 301/302 redirect hops & querying RDAP / Port-43 WHOIS...',
-        '[✓] Dispatching async queries to VirusTotal v3, Google Web Risk, URLScan & AbuseIPDB...',
-        '[✓] Scraping HudsonRock Infostealer DB, Abuse.ch ThreatFox & crt.sh CT Logs...',
-        '[✓] Executing Zero-Day Heuristics, DOM Payload Hunter & C2 Telemetry Unmasker...',
-        '[✓] Running Failover AI Threat Analyst Engine...'
+        '[✓] Engaging Zero-Trust WAF, XSS Filter & SSRF DNS-Rebinding Guard...',
+        '[✓] Querying VirusTotal v3, Google Web Risk, URLScan & AbuseIPDB...',
+        '[✓] Querying Authenticated Abuse.ch URLhaus, ThreatFox & Maltrail GitHub Repo...',
+        '[✓] Querying Project Honey Pot HTTP:BL, AlienVault OTX, Pulsedive, GreyNoise & Shodan...',
+        '[✓] Scraping crt.sh Certificate Transparency Logs & HudsonRock Infostealer DB...',
+        '[✓] Running Prompt-Shielded Failover AI Threat Analyst...'
       ];
       steps.innerHTML = '';
       logLines.forEach((line, idx) => {
         setTimeout(() => {
-          steps.innerHTML += `<div class="text-emerald-400">${line}</div>`;
-        }, idx * 180);
+          const d = document.createElement('div');
+          d.className = 'text-emerald-400';
+          d.textContent = line;
+          steps.appendChild(d);
+        }, idx * 160);
       });
 
       try {
@@ -446,10 +494,16 @@ github.com</textarea>
           body: JSON.stringify({ url })
         });
         const data = await res.json();
+        if (!res.ok) {
+          wafBox.textContent = '🛡️ [SECURITY SHIELD TRIGGERED]: ' + (data.detail || 'Request blocked by WAF.');
+          wafBox.classList.remove('hidden');
+          return;
+        }
         currentData = data;
         renderDashboard(data);
       } catch (err) {
-        alert('Scan error: ' + err);
+        wafBox.textContent = 'Network / Scan error: ' + err;
+        wafBox.classList.remove('hidden');
       } finally {
         btn.disabled = false;
         btn.innerText = 'Investigate Target';
@@ -460,130 +514,165 @@ github.com</textarea>
     function renderDashboard(d) {
       document.getElementById('resultsContainer').classList.remove('hidden');
 
-      const score = d.summary.risk_score;
-      const verdict = d.summary.verdict;
+      const score = Number(d.summary.risk_score) || 0;
+      const verdict = escapeHTML(d.summary.verdict);
       document.getElementById('resScore').innerHTML = `${score}<span class="text-2xl text-slate-500">/100</span>`;
       const vBadge = document.getElementById('resVerdict');
-      vBadge.innerText = verdict;
+      vBadge.textContent = verdict;
       vBadge.className = 'mt-3 px-4 py-1 rounded-full text-xs font-extrabold uppercase tracking-wider ' +
         (verdict === 'MALICIOUS' ? 'bg-rose-500/20 text-rose-400 border border-rose-500/40' :
          verdict === 'SUSPICIOUS' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/40' :
          'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40');
 
-      document.getElementById('resTime').innerText = `Scan completed in ${d.scan_metadata.scan_duration_ms} ms`;
-      document.getElementById('resDefangedUrl').innerText = d.target.defanged_url;
-      document.getElementById('resDomain').innerText = d.target.domain;
-      document.getElementById('resIpAsn').innerText = `${d.target.resolved_ip || 'Unresolved'} (${d.engines.abuseipdb.asn})`;
+      document.getElementById('resTime').textContent = `Scan completed in ${d.scan_metadata.scan_duration_ms} ms`;
+      document.getElementById('resDefangedUrl').textContent = d.target.defanged_url;
+      document.getElementById('resDomain').textContent = d.target.domain;
+      document.getElementById('resIpAsn').textContent = `${d.target.resolved_ip || 'Unresolved'} (${d.engines.abuseipdb.asn})`;
 
       const ageDays = d.forensics.whois.domain_age_days;
-      document.getElementById('resDomainAge').innerText = ageDays !== null ? `${ageDays} Days (${d.forensics.whois.creation_date})` : d.forensics.whois.creation_date;
-      document.getElementById('resBrand').innerText = d.heuristics.impersonated_brand || d.heuristics.indian_scam_type || 'None Detected';
+      document.getElementById('resDomainAge').textContent = ageDays !== null ? `${ageDays} Days (${d.forensics.whois.creation_date})` : d.forensics.whois.creation_date;
+      document.getElementById('resBrand').textContent = d.heuristics.impersonated_brand || d.heuristics.indian_scam_type || 'None Detected';
 
       const mitreBox = document.getElementById('mitreContainer');
       mitreBox.innerHTML = (d.summary.mitre_techniques || []).map(m =>
-        `<span class="bg-purple-500/20 text-purple-300 border border-purple-500/40 px-2 py-0.5 rounded text-[10px] font-mono">${m.id}: ${m.name}</span>`
+        `<span class="bg-purple-500/20 text-purple-300 border border-purple-500/40 px-2 py-0.5 rounded text-[10px] font-mono">${escapeHTML(m.id)}: ${escapeHTML(m.name)}</span>`
       ).join('');
 
       const trigBox = document.getElementById('resTriggers');
       trigBox.innerHTML = d.summary.triggers.length
-        ? d.summary.triggers.map(t => `<li class="bg-rose-500/10 border border-rose-500/20 text-rose-300 px-2.5 py-1 rounded">⚠️ ${t}</li>`).join('')
-        : `<li class="bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 px-2.5 py-1 rounded">✅ Zero malicious heuristics or blacklist triggers detected across 8 engines.</li>`;
+        ? d.summary.triggers.map(t => `<li class="bg-rose-500/10 border border-rose-500/20 text-rose-300 px-2.5 py-1 rounded">⚠️ ${escapeHTML(t)}</li>`).join('')
+        : `<li class="bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 px-2.5 py-1 rounded">✅ Zero malicious heuristics or blacklist triggers detected across 16 engines.</li>`;
 
-      // Failover AI Analyst Update
-      document.getElementById('aiConfidence').innerText = `Confidence: ${d.ai_council.confidence}`;
-      document.getElementById('aiEngineName').innerText = d.ai_council.active_model_used || 'Llama-3.3-70B';
-      document.getElementById('aiSocBox').innerText = d.ai_council.executive_soc_summary;
+      document.getElementById('aiConfidence').textContent = `Confidence: ${d.ai_council.confidence}`;
+      document.getElementById('aiEngineName').textContent = d.ai_council.active_model_used || 'Llama-3.3-70B';
+      document.getElementById('aiSocBox').textContent = d.ai_council.executive_soc_summary;
 
       const pr = d.ai_council.psychological_radar || {};
       ['Urgency', 'Auth', 'Fear', 'Tech'].forEach((k, idx) => {
-        const val = [pr.urgency, pr.authority_spoofing, pr.fear_factor, pr.technical_deception][idx] || 0;
-        document.getElementById('rad' + k).innerText = val + '%';
+        const val = Number([pr.urgency, pr.authority_spoofing, pr.fear_factor, pr.technical_deception][idx]) || 0;
+        document.getElementById('rad' + k).textContent = val + '%';
         document.getElementById('bar' + k).style.width = val + '%';
       });
 
+      // 16 Engine Cards
       const vt = d.engines.virustotal;
-      document.getElementById('engVt').innerText = `${vt.malicious} / ${vt.total_engines}`;
-      document.getElementById('engVtSub').innerText = vt.source_mode;
+      document.getElementById('engVt').textContent = `${vt.malicious} / ${vt.total_engines}`;
+      document.getElementById('engVtSub').textContent = vt.source_mode;
 
       const wr = d.engines.google_webrisk;
-      document.getElementById('engWr').innerText = wr.detected ? 'FLAGGED' : 'CLEAN';
-      document.getElementById('engWrSub').innerText = wr.threat_types.join(', ');
+      document.getElementById('engWr').textContent = wr.detected ? 'FLAGGED' : 'CLEAN';
+      document.getElementById('engWrSub').textContent = wr.threat_types.join(', ');
 
       const ab = d.engines.abuseipdb;
-      document.getElementById('engAbuse').innerText = `${ab.confidence_score}% Risk`;
-      document.getElementById('engAbuseSub').innerText = `${ab.isp} (${ab.country})`;
+      document.getElementById('engAbuse').textContent = `${ab.confidence_score}% Risk`;
+      document.getElementById('engAbuseSub').textContent = `${ab.isp} (${ab.country})`;
 
       const us = d.engines.urlscan;
-      document.getElementById('engUs').innerText = us.server || 'Active Scan';
+      document.getElementById('engUs').textContent = us.server || 'Active Scan';
       document.getElementById('engUsLink').href = us.report_link;
       document.getElementById('sandboxImg').src = us.screenshot;
-      document.getElementById('sandboxTitle').innerText = d.dom_forensics.page_title;
-      document.getElementById('shodanFaviconLink').href = `https://www.shodan.io/search?query=http.favicon.hash%3A${d.dom_forensics.favicon_hash}`;
-
-      const hr = d.darkweb_osint.infostealer_exposure;
-      document.getElementById('engHr').innerText = `${hr.compromised_records} Records`;
-      document.getElementById('engHrSub').innerText = hr.stealer_families.length ? hr.stealer_families.join(', ') : 'No Stealer Logs';
+      document.getElementById('sandboxTitle').textContent = d.dom_forensics.page_title;
+      document.getElementById('shodanFaviconLink').href = `https://www.shodan.io/search?query=http.favicon.hash%3A${encodeURIComponent(d.dom_forensics.favicon_hash)}`;
 
       const c2 = d.darkweb_osint.c2_intelligence;
-      document.getElementById('engC2').innerText = c2.c2_or_malware_listed ? 'C2 LISTED' : 'CLEAN';
-      document.getElementById('engC2Sub').innerText = c2.classification;
+      document.getElementById('engUh').textContent = c2.urlhaus_listed ? `FLAGGED (${c2.urlhaus_payload_count})` : 'CLEAN';
+      document.getElementById('engUhSub').textContent = c2.authenticated_mode ? 'Abuse.ch Auth Verified' : 'Public Feed';
 
-      document.getElementById('engWhois').innerText = d.forensics.whois.registrar;
-      document.getElementById('engWhoisSub').innerText = `Created: ${d.forensics.whois.creation_date}`;
+      document.getElementById('engTf').textContent = c2.threatfox_listed ? 'C2 HIT' : 'CLEAN';
+      document.getElementById('engTfSub').textContent = (c2.malware_families || []).join(', ') || c2.classification;
 
-      document.getElementById('engHeur').innerText = `${d.heuristics.heuristic_score} / 95`;
-      document.getElementById('engHeurSub').innerText = `Entropy: ${d.heuristics.entropy} bits`;
+      const mt = d.darkweb_osint.maltrail || {};
+      document.getElementById('engMt').textContent = mt.listed ? 'TRAIL HIT' : 'CLEAN';
+      document.getElementById('engMtSub').textContent = mt.trail_type || 'stamparm/maltrail';
 
+      const hp = d.darkweb_osint.project_honeypot || {};
+      document.getElementById('engHp').textContent = hp.listed ? `Score: ${hp.threat_score}` : 'CLEAN';
+      document.getElementById('engHpSub').textContent = hp.visitor_type || 'HTTP:BL Verified';
+
+      const otx = d.engines.alienvault_otx || {};
+      document.getElementById('engOtx').textContent = `${otx.pulse_count || 0} Pulses`;
+      document.getElementById('engOtxSub').textContent = (otx.pulses || []).join(', ') || 'AlienVault OTX';
+
+      const pd = d.engines.pulsedive || {};
+      document.getElementById('engPd').textContent = pd.risk || 'LOW';
+      document.getElementById('engPdSub').textContent = 'Pulsedive Threat Feed';
+
+      const gn = d.engines.greynoise || {};
+      document.getElementById('engGn').textContent = (gn.classification || 'standard').toUpperCase();
+      document.getElementById('engGnSub').textContent = gn.name || 'GreyNoise Sensor';
+
+      const sho = d.engines.shodan || {};
+      document.getElementById('engSho').textContent = `Ports: ${(sho.open_ports || [80,443]).slice(0,4).join(', ')}`;
+      document.getElementById('engShoSub').textContent = (sho.vulns || []).length ? `CVEs: ${sho.vulns.slice(0,2).join(', ')}` : (sho.os || 'No Known CVEs');
+
+      const crt = d.darkweb_osint.crtsh || {};
+      document.getElementById('engCrt').textContent = `${crt.cert_count || 1} Certs`;
+      document.getElementById('engCrtSub').textContent = `${(d.darkweb_osint.discovered_subdomains || []).length} Subdomains Found`;
+
+      const hr = d.darkweb_osint.infostealer_exposure;
+      document.getElementById('engHr').textContent = `${hr.compromised_records} Records`;
+      document.getElementById('engHrSub').textContent = hr.stealer_families.length ? hr.stealer_families.join(', ') : 'No Stealer Logs';
+
+      document.getElementById('engWhois').textContent = d.forensics.whois.registrar;
+      document.getElementById('engWhoisSub').textContent = `Created: ${d.forensics.whois.creation_date}`;
+
+      document.getElementById('engHeur').textContent = `${d.heuristics.heuristic_score} / 95`;
+      document.getElementById('engHeurSub').textContent = `Entropy: ${d.heuristics.entropy} bits`;
+
+      // Sub-Tab 2: WHOIS, SSL, DNS
       const w = d.forensics.whois;
-      document.getElementById('wRegistrar').innerText = w.registrar;
-      document.getElementById('wCreated').innerText = w.creation_date;
-      document.getElementById('wExpiry').innerText = w.expiry_date;
-      document.getElementById('wAge').innerText = w.domain_age_days !== null ? `${w.domain_age_days} days old` : 'Established';
-      document.getElementById('wAbuse').innerText = w.abuse_contact;
-      document.getElementById('wNs').innerText = (w.nameservers || []).join(', ') || 'Default Registry NS';
+      document.getElementById('wRegistrar').textContent = w.registrar;
+      document.getElementById('wCreated').textContent = w.creation_date;
+      document.getElementById('wExpiry').textContent = w.expiry_date;
+      document.getElementById('wAge').textContent = w.domain_age_days !== null ? `${w.domain_age_days} days old` : 'Established';
+      document.getElementById('wAbuse').textContent = w.abuse_contact;
+      document.getElementById('wNs').textContent = (w.nameservers || []).join(', ') || 'Default Registry NS';
 
       const s = d.forensics.ssl;
-      document.getElementById('sEnabled').innerText = s.ssl_enabled ? 'Yes (Active TLS)' : 'No / Unreachable';
-      document.getElementById('sIssuer').innerText = s.issuer;
-      document.getElementById('sSubject').innerText = s.subject_cn;
-      document.getElementById('sFrom').innerText = s.valid_from || 'N/A';
-      document.getElementById('sUntil').innerText = s.valid_until || 'N/A';
-      document.getElementById('sProto').innerText = s.protocol_version || 'N/A';
+      document.getElementById('sEnabled').textContent = s.ssl_enabled ? 'Yes (Active TLS)' : 'No / Unreachable';
+      document.getElementById('sIssuer').textContent = s.issuer;
+      document.getElementById('sSubject').textContent = s.subject_cn;
+      document.getElementById('sFrom').textContent = s.valid_from || 'N/A';
+      document.getElementById('sUntil').textContent = s.valid_until || 'N/A';
+      document.getElementById('sProto').textContent = s.protocol_version || 'N/A';
 
       const dns = d.forensics.dns;
-      document.getElementById('dA').innerText = (dns.a_records || []).join(', ') || d.target.resolved_ip || 'N/A';
-      document.getElementById('dMx').innerText = (dns.mx_records || []).join(', ') || 'None';
-      document.getElementById('dSpf').innerText = dns.spf_configured ? '✅ Present' : '❌ Missing (Spoofable)';
-      document.getElementById('dDmarc').innerText = dns.dmarc_configured ? '✅ Enforced' : '❌ Missing (Spoofable)';
-      document.getElementById('dRedirects').innerHTML = (d.forensics.redirects.chain || []).map((u, i) => `<div>Hop ${i+1}: ${u}</div>`).join('');
+      document.getElementById('dA').textContent = (dns.a_records || []).join(', ') || d.target.resolved_ip || 'N/A';
+      document.getElementById('dMx').textContent = (dns.mx_records || []).join(', ') || 'None';
+      document.getElementById('dSpf').textContent = dns.spf_configured ? '✅ Present' : '❌ Missing (Spoofable)';
+      document.getElementById('dDmarc').textContent = dns.dmarc_configured ? '✅ Enforced' : '❌ Missing (Spoofable)';
+      document.getElementById('dRedirects').innerHTML = (d.forensics.redirects.chain || []).map((u, i) => `<div>Hop ${i+1}: ${escapeHTML(u)}</div>`).join('');
 
+      // Sub-Tab 3: DOM & DarkWeb
       const dom = d.dom_forensics;
       const tgBox = document.getElementById('tgUnmaskBox');
       if (dom.telegram_exfil) {
         tgBox.innerHTML = `<div class="text-rose-400 font-bold">🚨 TELEGRAM BOT C2 UNMASKED (via getMe API)</div>
-          <div>Bot Username: <strong class="text-white">${dom.telegram_exfil.bot_username}</strong> (${dom.telegram_exfil.bot_name})</div>
-          <div>Token: ${dom.telegram_exfil.token} | Chat ID: ${dom.telegram_exfil.chat_id || 'Extracted'}</div>`;
+          <div>Bot Username: <strong class="text-white">${escapeHTML(dom.telegram_exfil.bot_username)}</strong> (${escapeHTML(dom.telegram_exfil.bot_name)})</div>
+          <div>Token: ${escapeHTML(dom.telegram_exfil.token)} | Chat ID: ${escapeHTML(dom.telegram_exfil.chat_id || 'Extracted')}</div>`;
       } else {
         tgBox.innerHTML = `<div class="text-emerald-400">✅ No hardcoded Telegram Bot Token or Discord Exfil Webhook found in DOM.</div>`;
       }
-      document.getElementById('domFormAction').innerText = dom.form_action;
-      document.getElementById('domInputs').innerText = (dom.requested_inputs || []).join(', ') || 'None';
-      document.getElementById('domUpi').innerText = (dom.upi_scam_ids || []).join(', ') || 'None';
-      document.getElementById('domDeobf').innerText = (dom.deobfuscated_scripts || []).join('\n') || 'No obfuscated Base64/Hex JS payloads detected.';
+      document.getElementById('domFormAction').textContent = dom.form_action;
+      document.getElementById('domInputs').textContent = (dom.requested_inputs || []).join(', ') || 'None';
+      document.getElementById('domUpi').textContent = (dom.upi_scam_ids || []).join(', ') || 'None';
+      document.getElementById('domDeobf').textContent = (dom.deobfuscated_scripts || []).join('\n') || 'No obfuscated Base64/Hex JS payloads detected.';
 
-      document.getElementById('dwTor').innerText = d.darkweb_osint.is_tor_gateway ? '🚨 Tor Gateway Detected' : 'Standard Clearnet';
-      document.getElementById('dwStealer').innerText = `${hr.compromised_records} Compromised Credential Logs`;
-      document.getElementById('dwC2').innerText = c2.classification;
+      document.getElementById('dwTor').textContent = d.darkweb_osint.is_tor_gateway ? '🚨 Tor Gateway Detected' : 'Standard Clearnet';
+      document.getElementById('dwStealer').textContent = `${hr.compromised_records} Compromised Credential Logs`;
+      document.getElementById('dwC2').textContent = c2.classification;
+      document.getElementById('dwMtHp').textContent = `Maltrail: ${mt.trail_type || 'Clean'} | HTTP:BL: ${hp.visitor_type || 'Clean'}`;
       document.getElementById('dwSubs').innerHTML = (d.darkweb_osint.discovered_subdomains || []).map(sub =>
-        `<span class="bg-slate-900 border border-slate-700 px-2 py-0.5 rounded text-cyan-300">${sub}</span>`
+        `<span class="bg-slate-900 border border-slate-700 px-2 py-0.5 rounded text-cyan-300">${escapeHTML(sub)}</span>`
       ).join('');
 
+      // Sub-Tab 4: SOC Rules
       const soc = d.soc_arsenal;
-      document.getElementById('socYara').innerText = soc.yara_rule;
-      document.getElementById('socSigma').innerText = soc.sigma_rule;
-      document.getElementById('socSuricata').innerText = soc.suricata_rule + '\n\n# Linux UFW Block:\n' + soc.ufw_command;
-      document.getElementById('socSplunk').innerText = '# Splunk SPL:\n' + soc.splunk_spl + '\n\n# Microsoft Sentinel KQL:\n' + soc.sentinel_kql;
-      document.getElementById('socTakedown').innerText = soc.takedown_notice;
+      document.getElementById('socYara').textContent = soc.yara_rule;
+      document.getElementById('socSigma').textContent = soc.sigma_rule;
+      document.getElementById('socSuricata').textContent = soc.suricata_rule + '\n\n# Linux UFW Block:\n' + soc.ufw_command;
+      document.getElementById('socSplunk').textContent = '# Splunk SPL:\n' + soc.splunk_spl + '\n\n# Microsoft Sentinel KQL:\n' + soc.sentinel_kql;
+      document.getElementById('socTakedown').textContent = soc.takedown_notice;
 
       renderThreatGraph(d);
     }
@@ -621,7 +710,7 @@ github.com</textarea>
     }
 
     function copyText(elId) {
-      const text = document.getElementById(elId).innerText;
+      const text = document.getElementById(elId).textContent;
       navigator.clipboard.writeText(text);
       alert('Copied to clipboard!');
     }
@@ -648,15 +737,14 @@ Dear Employee, please re-verify your corporate AD credentials immediately at htt
       const box = document.getElementById('emailResults');
       box.classList.remove('hidden');
       box.innerHTML = `
-        <div class="text-lg font-bold text-rose-400">Email Spoofing Risk Score: ${d.email_risk_score}/100</div>
+        <div class="text-lg font-bold text-rose-400">Email Spoofing Risk Score: ${Number(d.email_risk_score) || 0}/100</div>
         <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <div class="bg-slate-950 p-3 rounded border border-slate-800">SPF: <strong>${d.spf}</strong></div>
-          <div class="bg-slate-950 p-3 rounded border border-slate-800">DKIM: <strong>${d.dkim}</strong></div>
-          <div class="bg-slate-950 p-3 rounded border border-slate-800">DMARC: <strong>${d.dmarc}</strong></div>
+          <div class="bg-slate-950 p-3 rounded border border-slate-800">SPF: <strong>${escapeHTML(d.spf)}</strong></div>
+          <div class="bg-slate-950 p-3 rounded border border-slate-800">DKIM: <strong>${escapeHTML(d.dkim)}</strong></div>
+          <div class="bg-slate-950 p-3 rounded border border-slate-800">DMARC: <strong>${escapeHTML(d.dmarc)}</strong></div>
         </div>
-        <div>From: ${d.from} | Return-Path: ${d.return_path}</div>
-        <div>Originating Hop IPs: ${(d.originating_ips || []).join(', ')}</div>
-        <div>Extracted Links: ${(d.extracted_urls || []).map(u => `<button onclick="switchWorkspace('url');simulateAttack('${u}')" class="underline text-cyan-400 mr-3">${u} [Scan Now ↗]</button>`).join('')}</div>
+        <div>From: ${escapeHTML(d.from)} | Return-Path: ${escapeHTML(d.return_path)}</div>
+        <div>Originating Hop IPs: ${(d.originating_ips || []).map(escapeHTML).join(', ')}</div>
       `;
     }
 
@@ -664,19 +752,19 @@ Dear Employee, please re-verify your corporate AD credentials immediately at htt
       const urls = document.getElementById('bulkInput').value.split('\n').map(u => u.trim()).filter(Boolean);
       if (!urls.length) return;
       const btn = document.getElementById('bulkBtn');
-      btn.innerText = 'Scanning Batch...';
+      btn.textContent = 'Scanning Batch...';
       const res = await fetch('/api/v1/bulk-scan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ urls })
       });
       const data = await res.json();
-      btn.innerText = 'Run Parallel Bulk Triage';
+      btn.textContent = 'Run Parallel Bulk Triage';
       const box = document.getElementById('bulkResults');
       box.classList.remove('hidden');
       box.innerHTML = `<table class="w-full text-left font-mono text-xs">
         <thead><tr class="border-b border-slate-800 text-cyan-400"><th class="py-2">Domain</th><th>IP</th><th>Score</th><th>Verdict</th><th>Target Brand</th></tr></thead>
-        <tbody>${data.results.map(r => `<tr class="border-b border-slate-900"><td class="py-2">${r.target.domain}</td><td>${r.target.resolved_ip || 'N/A'}</td><td>${r.summary.risk_score}/100</td><td class="font-bold">${r.summary.verdict}</td><td>${r.heuristics.impersonated_brand || 'None'}</td></tr>`).join('')}</tbody>
+        <tbody>${data.results.map(r => `<tr class="border-b border-slate-900"><td class="py-2">${escapeHTML(r.target.domain)}</td><td>${escapeHTML(r.target.resolved_ip || 'N/A')}</td><td>${Number(r.summary.risk_score)}/100</td><td class="font-bold">${escapeHTML(r.summary.verdict)}</td><td>${escapeHTML(r.heuristics.impersonated_brand || 'None')}</td></tr>`).join('')}</tbody>
       </table>`;
     }
   </script>

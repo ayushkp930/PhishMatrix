@@ -1,9 +1,10 @@
 import os
 import time
 import asyncio
-from fastapi import FastAPI, HTTPException, Query
+from collections import defaultdict
+from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, PlainTextResponse
+from fastapi.responses import FileResponse, PlainTextResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List
@@ -11,24 +12,49 @@ from app.orchestrator import investigate_target
 from app.email_parser import analyze_raw_email
 
 app = FastAPI(
-    title="PhishMatrix // AI-Powered Multi-Engine Threat Investigation Platform",
-    description="8-Feed Threat Intel + 3-Model AI SOC Council + Zero-Day DOM/WHOIS/DarkWeb Forensics",
-    version="3.0.0"
+    title="PhishMatrix v4.0 // Hardened Enterprise SOAR & Threat Intelligence Platform",
+    description="15-Engine Threat Intel + Smart Failover AI Analyst + WAF/SSRF/XSS/Prompt-Injection Hardened",
+    version="4.0.0"
 )
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST"],
+    allow_headers=["Content-Type"],
 )
+
+# Built-in WAF Rate Limiter (Max 30 requests per 60s per IP)
+RATE_LIMIT_BUCKETS = defaultdict(list)
+
+@app.middleware("http")
+async def security_headers_and_waf_middleware(request: Request, call_next):
+    client_ip = request.client.host if request.client else "unknown"
+    now = time.time()
+    RATE_LIMIT_BUCKETS[client_ip] = [t for t in RATE_LIMIT_BUCKETS[client_ip] if now - t < 60]
+    if len(RATE_LIMIT_BUCKETS[client_ip]) >= 30:
+        return JSONResponse(status_code=429, content={"detail": "WAF Rate Limit Exceeded: Max 30 scans per minute."})
+    RATE_LIMIT_BUCKETS[client_ip].append(now)
+
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Content-Security-Policy"] = (
+        "default-src 'self' https:; "
+        "script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://unpkg.com; "
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+        "img-src 'self' data: https:; "
+        "font-src 'self' https://fonts.gstatic.com;"
+    )
+    return response
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 STATIC_DIR = os.path.join(BASE_DIR, "static")
 if os.path.exists(STATIC_DIR):
     app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
-# In-Memory TTL Cache to save API Quotas & boost speed
 SCAN_CACHE = {}
 CACHE_TTL_SECONDS = 600
 
@@ -55,8 +81,10 @@ async def api_scan_url(req: ScanRequest):
         cached = SCAN_CACHE[key]["data"]
         cached["scan_metadata"]["cached"] = True
         return cached
-
-    result = await investigate_target(req.url.strip())
+    try:
+        result = await investigate_target(req.url.strip())
+    except ValueError as sec_err:
+        raise HTTPException(status_code=403, detail=str(sec_err))
     SCAN_CACHE[key] = {"ts": now, "data": result}
     return result
 
@@ -64,18 +92,26 @@ async def api_scan_url(req: ScanRequest):
 async def api_scan_email(req: EmailScanRequest):
     if not req.raw_email.strip():
         raise HTTPException(status_code=400, detail="Email content cannot be empty")
-    return analyze_raw_email(req.raw_email)
+    return analyze_raw_email(req.raw_email[:50000])
 
 @app.post("/api/v1/bulk-scan")
 async def api_bulk_scan(req: BulkScanRequest):
     targets = [u.strip() for u in req.urls if u.strip()][:8]
-    results = await asyncio.gather(*(investigate_target(u) for u in targets))
+    results = []
+    for u in targets:
+        try:
+            results.append(await investigate_target(u))
+        except ValueError as e:
+            results.append({"target": {"domain": u, "resolved_ip": "BLOCKED"}, "summary": {"risk_score": 100, "verdict": "WAF_BLOCKED"}, "heuristics": {"impersonated_brand": str(e)}})
     return {"count": len(results), "results": results}
 
 @app.get("/cli", response_class=PlainTextResponse)
 async def kali_terminal_cli(url: str = Query(..., description="Target URL or domain to scan from terminal")):
-    """Kali Linux Terminal Direct Mode: curl -s 'https://your-app.vercel.app/cli?url=evil.com'"""
-    res = await investigate_target(url)
+    try:
+        res = await investigate_target(url)
+    except ValueError as sec_err:
+        return f"[WAF / SSRF SHIELD BLOCK]: {sec_err}\n"
+
     s = res["summary"]
     t = res["target"]
     w = res["forensics"]["whois"]
@@ -88,9 +124,9 @@ async def kali_terminal_cli(url: str = Query(..., description="Target URL or dom
     cyan = "\033[96m"
 
     triggers_str = "\n".join(f"  [!] {tr}" for tr in s["triggers"][:6]) or "  [✓] No malicious indicators triggered."
-    out = f"""
+    return f"""
 {cyan}╔══════════════════════════════════════════════════════════════════════════╗
-║   PHISHMATRIX v3.0 // KALI LINUX TERMINAL THREAT INVESTIGATION ENGINE    ║
+║   PHISHMATRIX v4.0 // KALI LINUX TERMINAL THREAT INVESTIGATION ENGINE    ║
 ╚══════════════════════════════════════════════════════════════════════════╝{reset}
   • Target URL     : {t['defanged_url']}
   • Resolved IP    : {t['resolved_ip']} ({ab['isp']} / {ab['country']} / {ab['asn']})
@@ -102,9 +138,7 @@ async def kali_terminal_cli(url: str = Query(..., description="Target URL or dom
 {cyan}[+] DETECTION TRIGGERS & FORENSIC EVIDENCE:{reset}
 {triggers_str}
 
-{cyan}[+] 3-MODEL AI SOC COUNCIL CONSENSUS:{reset}
+{cyan}[+] AI SOC THREAT ANALYST ({ai.get('active_model_used', 'Autonomous')}):{reset}
   {ai['executive_soc_summary']}
-
 {cyan}════════════════════════════════════════════════════════════════════════════{reset}
 """
-    return out
