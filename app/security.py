@@ -5,7 +5,6 @@ import ipaddress
 from urllib.parse import urlparse, unquote
 
 class HoneypotTrapTriggered(ValueError):
-    """Raised when an attacker or tester attempts XSS, SQLi, SSRF, RCE, or Prompt Injection."""
     def __init__(self, attack_type: str, payload: str, message: str):
         super().__init__(message)
         self.attack_type = attack_type
@@ -43,9 +42,13 @@ def is_ip_unsafe(ip_str: str) -> bool:
         ip_obj = ipaddress.ip_address(ip_str)
         if hasattr(ip_obj, "ipv4_mapped") and ip_obj.ipv4_mapped:
             ip_obj = ip_obj.ipv4_mapped
+
+        # Allow NAT64 IPv6 networks (RFC 6052) used by Cellular/Jio networks
+        if isinstance(ip_obj, ipaddress.IPv6Address) and ip_obj.exploded.startswith("0064:ff9b:0000:0000:0000:0000:"):
+            return False
+
         return (
-            not ip_obj.is_global
-            or ip_obj.is_private
+            ip_obj.is_private
             or ip_obj.is_loopback
             or ip_obj.is_link_local
             or ip_obj.is_multicast
@@ -78,7 +81,6 @@ def normalize_target(raw_input: str) -> dict:
     decoded_once = unquote(raw_trimmed)
     combined_check = f"{raw_trimmed} {decoded_once}"
 
-    # 1. Check Active Honeypot Attack Signatures (XSS, SQLi, RCE, Traversal, SSTI)
     for attack_label, pattern in ATTACK_SIGNATURES:
         if re.search(pattern, combined_check, flags=re.IGNORECASE):
             raise HoneypotTrapTriggered(
@@ -87,7 +89,6 @@ def normalize_target(raw_input: str) -> dict:
                 f"LOL 😂 Nice Try! {attack_label} intercepted by PhishMatrix Active Deception Honeypot! 🍯🤡"
             )
 
-    # 2. Check AI Prompt Injection inside URL
     _, prompt_inj = sanitize_for_llm(combined_check)
     if prompt_inj:
         raise HoneypotTrapTriggered(
@@ -111,7 +112,6 @@ def normalize_target(raw_input: str) -> dict:
             f"LOL 😂 Trying to scan internal/loopback host ({domain or 'local'})? Welcome to the SSRF Honeypot! 🍯🤡"
         )
 
-    # Check octal/hex/decimal IP obfuscation tricks (e.g., 2130706433 or 0x7f000001)
     if re.match(r"^(0x[0-9a-f]+|\d{8,10}|0\d+\.0\d+.*)$", domain):
         raise HoneypotTrapTriggered(
             "SSRF IP Obfuscation (Hex/Octal/Dword)",
