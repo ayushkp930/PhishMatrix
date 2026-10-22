@@ -1,788 +1,456 @@
-<!DOCTYPE html>
-<html lang="en" class="dark">
+<!doctype html>
+<html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>PhishMatrix v4.0 // Hardened Enterprise SOAR & Threat Intelligence Platform</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <style>
-    body { font-family: 'Inter', sans-serif; background-color: #04070f; color: #e2e8f0; }
-    .font-mono { font-family: 'JetBrains Mono', monospace; }
-    .cyber-card { background: rgba(12, 19, 36, 0.88); border: 1px solid rgba(51, 65, 85, 0.75); backdrop-filter: blur(12px); }
-    .cyber-glow { box-shadow: 0 0 30px rgba(6, 182, 212, 0.16); }
-    @media print { .no-print { display: none !important; } }
-  </style>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="theme-color" content="#0b1020" />
+<meta name="description" content="PhishMatrix v6.0 threat intelligence and phishing investigation workspace." />
+<title>PhishMatrix — Threat Intelligence Workbench</title>
+<style>
+:root{color-scheme:dark;--bg:#0a0e19;--panel:#101625;--panel2:#131b2d;--panel3:#0d1423;--stroke:#263147;--stroke2:#1e293d;--text:#edf3ff;--muted:#8b98b3;--subtle:#596781;--cyan:#59d5e8;--cyan2:#2ba8c1;--green:#4ed4a0;--amber:#f6bf64;--red:#ff7185;--purple:#b39aff;--radius:17px;--shadow:0 22px 70px rgba(0,0,0,.24)}
+*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:radial-gradient(ellipse at 76% -20%,rgba(26,96,132,.15),transparent 42%),var(--bg);color:var(--text);font:14px/1.5 Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;letter-spacing:.005em}button,input,textarea,select{font:inherit}button{cursor:pointer}button:focus-visible,input:focus-visible,textarea:focus-visible,a:focus-visible{outline:2px solid var(--cyan);outline-offset:3px}a{color:inherit;text-decoration:none}.app{min-height:100vh}.sidebar{width:246px;position:fixed;inset:0 auto 0 0;background:rgba(9,14,26,.94);border-right:1px solid var(--stroke2);padding:24px 15px 17px;display:flex;flex-direction:column;z-index:20;backdrop-filter:blur(18px)}.brand{display:flex;align-items:center;gap:11px;padding:0 9px 25px}.brand-mark{width:36px;height:36px;border-radius:11px;background:linear-gradient(145deg,#5ee4ef,#1788a9);display:grid;place-items:center;box-shadow:0 7px 24px rgba(48,191,216,.18);color:#07131f}.brand-mark svg{width:22px;height:22px}.brand-name{font-weight:760;font-size:17px;letter-spacing:-.04em}.brand-name span{color:var(--cyan)}.brand-version{font-size:9px;color:var(--muted);letter-spacing:.12em;text-transform:uppercase;margin-top:1px}.workspace-label{font-size:10px;font-weight:750;letter-spacing:.14em;color:#687690;padding:8px 10px 9px;text-transform:uppercase}.nav{display:grid;gap:4px}.nav-item{position:relative;border:0;color:#95a2bb;background:transparent;display:flex;align-items:center;gap:12px;padding:11px 12px;border-radius:10px;text-align:left;transition:.18s;font-size:13px}.nav-item svg{width:17px;height:17px;flex:0 0 17px;stroke-width:1.8}.nav-item:hover{background:#141e30;color:#eaf4ff}.nav-item.active{color:#dffaff;background:linear-gradient(90deg,rgba(57,193,214,.14),rgba(57,193,214,.035));box-shadow:inset 2px 0 var(--cyan)}.nav-item.active svg{color:var(--cyan)}.nav-count{margin-left:auto;font-size:10px;background:#1b283d;padding:2px 7px;border-radius:6px;color:#a6b8d4}.sidebar-spacer{flex:1}.sidebar-status{margin:10px 3px 13px;padding:13px;border:1px solid var(--stroke);border-radius:13px;background:linear-gradient(145deg,rgba(21,35,52,.75),rgba(12,19,33,.8))}.status-heading{display:flex;gap:8px;align-items:center;font-weight:650;font-size:11px}.status-dot{width:7px;height:7px;border-radius:50%;background:#71809a;box-shadow:0 0 0 4px rgba(113,128,154,.1)}.status-dot.good{background:var(--green);box-shadow:0 0 0 4px rgba(78,212,160,.1)}.status-dot.bad{background:var(--red);box-shadow:0 0 0 4px rgba(255,113,133,.1)}.status-description{font-size:10px;color:var(--muted);margin:8px 0 10px}.tiny-link{color:var(--cyan);font-size:10px;font-weight:650;background:none;border:0;padding:0}.sidebar-bottom{display:flex;align-items:center;gap:10px;border-top:1px solid var(--stroke2);padding:17px 7px 0;color:var(--muted);font-size:11px}.avatar{height:29px;width:29px;display:grid;place-items:center;border-radius:9px;background:#233049;color:#d8ecfa;font-weight:750;font-size:10px}.user-meta{min-width:0}.user-name{font-size:11px;font-weight:700;color:#dce5f5}.user-role{font-size:10px;color:var(--muted)}.main{margin-left:246px;min-height:100vh}.topbar{height:73px;border-bottom:1px solid var(--stroke2);display:flex;align-items:center;justify-content:space-between;padding:0 clamp(23px,3.1vw,48px);background:rgba(9,14,25,.6);backdrop-filter:blur(18px);gap:16px;position:sticky;top:0;z-index:10}.breadcrumbs{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:9px}.breadcrumbs strong{color:#eaf1fc;font-weight:650}.crumb-sep{color:#526078}.top-actions{display:flex;align-items:center;gap:13px}.search-ghost{height:35px;display:flex;align-items:center;gap:10px;padding:0 10px;border:1px solid var(--stroke);border-radius:9px;color:#75829b;background:#101726;width:190px;font-size:11px}.search-ghost svg{width:14px;height:14px}.keycap{border:1px solid #37435a;border-radius:4px;color:#71809a;padding:1px 5px;margin-left:auto;font-size:9px}.health-pill{display:flex;align-items:center;gap:8px;border:1px solid var(--stroke);background:#101726;padding:8px 10px;border-radius:9px;font-size:10px;color:#b6c4da;white-space:nowrap}.health-pill .status-dot{width:6px;height:6px}.icon-button{width:34px;height:34px;display:grid;place-items:center;border:1px solid var(--stroke);background:#101726;color:#a8b4c9;border-radius:9px}.icon-button svg{width:15px;height:15px}.mobile-menu{display:none}.content{max-width:1630px;margin:0 auto;padding:31px clamp(23px,3.1vw,48px) 45px}.page-heading{display:flex;justify-content:space-between;align-items:flex-start;gap:20px;margin-bottom:24px}.eyebrow{color:var(--cyan);font-size:10px;font-weight:750;letter-spacing:.15em;text-transform:uppercase;display:flex;align-items:center;gap:7px}.eyebrow:before{content:"";width:17px;height:1px;background:var(--cyan)}h1{font-size:clamp(24px,2.4vw,32px);line-height:1.17;letter-spacing:-.045em;margin:8px 0 7px;font-weight:740}.page-subtitle{color:var(--muted);font-size:12px;max-width:690px;margin:0}.heading-actions{display:flex;gap:9px;align-items:center;padding-top:8px}.btn{border:1px solid var(--stroke);border-radius:9px;background:#151f31;color:#d5e0f1;padding:10px 13px;font-weight:650;font-size:11px;display:inline-flex;align-items:center;justify-content:center;gap:8px;transition:transform .16s,border-color .16s,background .16s;white-space:nowrap}.btn:hover{border-color:#435574;background:#1a2940;transform:translateY(-1px)}.btn svg{width:14px;height:14px}.btn-primary{background:linear-gradient(135deg,#67e4e8,#37b8d2);color:#07151e;border-color:transparent;box-shadow:0 8px 24px rgba(55,184,210,.12)}.btn-primary:hover{background:linear-gradient(135deg,#7cecf0,#51c7df);border-color:transparent}.btn-small{padding:7px 10px;font-size:10px}.btn-quiet{background:transparent}.section-label{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:25px 0 12px}.section-label h2{font-size:13px;letter-spacing:-.015em;margin:0;font-weight:700}.section-label p{margin:3px 0 0;color:var(--muted);font-size:10px}.section-action{font-size:10px;color:var(--cyan);background:none;border:0}.grid{display:grid;gap:14px}.stats-grid{grid-template-columns:repeat(4,minmax(0,1fr));margin-bottom:17px}.card{min-width:0;border:1px solid var(--stroke2);border-radius:var(--radius);background:linear-gradient(145deg,rgba(18,26,43,.94),rgba(14,21,35,.96));box-shadow:0 6px 28px rgba(0,0,0,.07)}.stat-card{padding:16px 17px 15px;position:relative;overflow:hidden}.stat-top{display:flex;align-items:center;justify-content:space-between;color:var(--muted);font-size:10px;gap:8px}.stat-icon{height:30px;width:30px;border-radius:9px;background:#1d2b40;color:var(--cyan);display:grid;place-items:center}.stat-icon svg{width:15px;height:15px}.stat-value{font-size:26px;font-weight:740;letter-spacing:-.055em;margin:12px 0 6px;line-height:1}.stat-foot{font-size:10px;color:#71809a}.stat-foot .accent{color:var(--cyan)}.dashboard-grid{grid-template-columns:minmax(0,1.56fr) minmax(280px,.86fr);align-items:stretch}.scan-card{padding:21px 21px 19px;position:relative;overflow:hidden}.scan-card:after{content:"";position:absolute;right:-100px;top:-135px;width:260px;height:260px;border-radius:50%;border:1px solid rgba(89,213,232,.07);box-shadow:0 0 0 32px rgba(89,213,232,.018),0 0 0 66px rgba(89,213,232,.012);pointer-events:none}.card-heading{display:flex;align-items:flex-start;gap:10px;margin-bottom:17px;position:relative;z-index:1}.heading-icon{height:34px;width:34px;flex:0 0 34px;border-radius:10px;background:rgba(89,213,232,.1);color:var(--cyan);display:grid;place-items:center}.heading-icon svg{width:17px;height:17px}.card-heading h2{font-size:13px;margin:1px 0 3px;font-weight:730}.card-heading p{margin:0;font-size:10px;color:var(--muted)}.input-label{display:block;font-size:10px;color:#b4c0d4;font-weight:650;margin:0 0 7px}.scan-input-wrap{display:flex;gap:8px;position:relative;z-index:1}.scan-input{width:100%;min-width:0;background:#0b1220;border:1px solid #2c3a50;border-radius:9px;padding:13px 13px;color:#eaf4ff;font-size:12px;outline:none}.scan-input::placeholder{color:#5d6a83}.scan-input:focus,textarea:focus{border-color:#4dc6dc;box-shadow:0 0 0 3px rgba(89,213,232,.08)}.scan-input-wrap .btn{padding-inline:15px}.input-helper{display:flex;justify-content:space-between;gap:10px;color:#6f7e99;font-size:10px;margin-top:8px}.example-chips{display:flex;gap:7px;flex-wrap:wrap;margin-top:16px;position:relative;z-index:1}.example-chip{color:#a3b0c6;background:#18243a;border:1px solid #26354e;padding:6px 9px;border-radius:7px;font-size:10px}.example-chip:hover{border-color:#4e7086;color:#d5faff}.scan-progress{display:none;margin-top:16px;padding:13px;border:1px solid #29465a;border-radius:10px;background:#0e1b2a}.scan-progress.show{display:block}.progress-head{display:flex;justify-content:space-between;gap:10px;font-size:10px;color:#cfe4f1}.progress-track{height:4px;background:#203148;border-radius:5px;overflow:hidden;margin-top:9px}.progress-bar{height:100%;width:28%;background:var(--cyan);border-radius:5px;animation:progress 1.2s ease-in-out infinite alternate}@keyframes progress{from{width:21%}to{width:78%}}.risk-card{padding:20px;display:flex;flex-direction:column;position:relative;overflow:hidden}.risk-card:before{content:"";position:absolute;width:210px;height:210px;border-radius:50%;background:rgba(89,213,232,.05);filter:blur(30px);right:-100px;top:-100px}.risk-title{display:flex;justify-content:space-between;align-items:center;gap:10px}.risk-title h2{font-size:13px;margin:0}.pill{font-size:9px;font-weight:750;letter-spacing:.05em;padding:5px 7px;border-radius:6px;background:#202a3e;color:#9cabc3;white-space:nowrap}.pill-demo{background:rgba(246,191,100,.12);color:var(--amber);border:1px solid rgba(246,191,100,.2)}.pill-good{background:rgba(78,212,160,.11);color:var(--green)}.pill-warn{background:rgba(246,191,100,.1);color:var(--amber)}.pill-danger{background:rgba(255,113,133,.1);color:var(--red)}.risk-visual{display:flex;justify-content:center;align-items:center;padding:17px 0 13px;position:relative}.risk-ring{width:146px;height:146px;border-radius:50%;display:grid;place-items:center;position:relative;background:conic-gradient(#2a394e 0deg,#2a394e 360deg)}.risk-ring:before{content:"";position:absolute;inset:9px;border-radius:50%;background:#111928;border:1px solid #28334a}.risk-ring-inner{position:relative;text-align:center}.risk-number{font-size:34px;font-weight:780;letter-spacing:-.07em;line-height:1.1}.risk-number small{font-size:12px;color:#73829d;font-weight:600;letter-spacing:0}.risk-caption{font-size:9px;color:var(--muted);margin-top:5px}.risk-empty-note{text-align:center;font-size:10px;color:#8391a9;margin-bottom:14px}.risk-divider{height:1px;background:var(--stroke2);margin:0 0 14px}.risk-facts{display:grid;gap:10px}.fact-row{display:flex;justify-content:space-between;gap:10px;font-size:10px}.fact-row span:first-child{color:var(--muted)}.fact-row span:last-child{color:#d3dff0;text-align:right;font-weight:600}.result-banner{display:none;margin-top:15px;padding:14px;border-radius:11px;border:1px solid var(--stroke);background:#101a2c}.result-banner.show{display:block}.result-banner h3{font-size:12px;margin:0 0 6px}.result-banner p{color:var(--muted);font-size:11px;margin:0;overflow-wrap:anywhere}.feed-grid{grid-template-columns:repeat(4,minmax(0,1fr))}.feed-card{padding:12px 13px;display:flex;align-items:center;gap:10px;min-width:0}.feed-logo{height:31px;width:31px;flex:0 0 31px;display:grid;place-items:center;border-radius:9px;background:#1c293d;color:#aec0d9;font-size:10px;font-weight:800;letter-spacing:-.04em}.feed-info{min-width:0;flex:1}.feed-name{font-size:10px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.feed-type{font-size:9px;color:#7786a1;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.feed-state{width:6px;height:6px;border-radius:50%;background:#63718a;flex:0 0 6px}.feed-state.done{background:var(--green)}.feed-state.error{background:var(--red)}.lower-grid{grid-template-columns:minmax(0,1.18fr) minmax(0,.82fr)}.panel-padding{padding:17px}.panel-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:14px}.panel-head h2{font-size:12px;margin:0;font-weight:730}.panel-head p{font-size:10px;color:var(--muted);margin:3px 0 0}.empty-state{min-height:154px;border:1px dashed #28364c;border-radius:11px;display:flex;align-items:center;justify-content:center;flex-direction:column;text-align:center;padding:18px}.empty-icon{height:35px;width:35px;border-radius:11px;background:#1b263a;color:#8194b5;display:grid;place-items:center;margin-bottom:9px}.empty-icon svg{width:17px;height:17px}.empty-state strong{font-size:11px;font-weight:700}.empty-state p{font-size:10px;color:var(--muted);max-width:250px;margin:5px 0 11px}.timeline{display:grid;gap:0}.timeline-item{display:grid;grid-template-columns:24px 1fr;gap:9px;position:relative;padding-bottom:14px}.timeline-item:last-child{padding-bottom:0}.timeline-glyph{height:23px;width:23px;display:grid;place-items:center;border-radius:7px;background:#1b2a40;color:var(--cyan)}.timeline-glyph svg{height:12px;width:12px}.timeline-body{border-bottom:1px solid var(--stroke2);padding:1px 0 12px}.timeline-item:last-child .timeline-body{border-bottom:0;padding-bottom:0}.timeline-title{font-size:10px;font-weight:650}.timeline-detail{font-size:10px;color:var(--muted);margin-top:4px;overflow-wrap:anywhere}.timeline-time{font-size:9px;color:#64738d;margin-top:5px}.view{display:none}.view.active{display:block}.work-panel{padding:22px}.work-grid{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(260px,.7fr);gap:14px}.textarea{width:100%;min-height:220px;resize:vertical;background:#0b1220;border:1px solid #2c3a50;border-radius:10px;padding:13px;color:#eaf4ff;font-size:12px;outline:none}.textarea::placeholder{color:#5d6a83}.form-row{display:flex;justify-content:space-between;align-items:center;gap:12px;margin:9px 0 15px}.helper-text{font-size:10px;color:var(--muted)}.info-box{border:1px solid var(--stroke);border-radius:12px;padding:15px;background:#0d1423}.info-box h3{font-size:11px;margin:0 0 9px}.info-box p{font-size:10px;color:var(--muted);margin:0 0 12px}.info-list{display:grid;gap:10px}.info-line{display:flex;gap:8px;color:#aab8ce;font-size:10px}.info-line svg{height:13px;width:13px;flex:0 0 13px;color:var(--green)}.bulk-output,.raw-output{display:none;margin-top:15px;border:1px solid var(--stroke);border-radius:12px;background:#0a111e;overflow:hidden}.bulk-output.show,.raw-output.show{display:block}.output-head{display:flex;justify-content:space-between;align-items:center;padding:11px 13px;border-bottom:1px solid var(--stroke2);font-size:10px;color:#bfcce0}.output-body{padding:13px;max-height:360px;overflow:auto}.ioc-result{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;padding:10px 0;border-bottom:1px solid var(--stroke2)}.ioc-result:last-child{border-bottom:0}.ioc-host{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:10px;color:#dceafa;overflow-wrap:anywhere}.ioc-sub{font-size:9px;color:var(--muted);margin-top:4px}.raw-json{white-space:pre-wrap;overflow-wrap:anywhere;font:10px/1.55 ui-monospace,SFMono-Regular,Menlo,monospace;color:#b5d6dd;margin:0}.rules-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.rule-card{padding:15px}.rule-heading{display:flex;justify-content:space-between;gap:8px;margin-bottom:10px}.rule-heading strong{font-size:11px}.rule-heading span{font-size:9px;color:var(--muted)}.rule-code{background:#0a111d;border:1px solid #202d41;border-radius:9px;padding:12px;white-space:pre-wrap;overflow-wrap:anywhere;font:10px/1.65 ui-monospace,SFMono-Regular,Menlo,monospace;color:#aac7db;min-height:105px}.report-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.report-card{padding:18px}.report-card h3{font-size:12px;margin:0 0 7px}.report-card p{font-size:10px;color:var(--muted);margin:0 0 15px}.toast-region{position:fixed;right:20px;bottom:20px;z-index:70;display:grid;gap:8px;max-width:min(390px,calc(100vw - 40px))}.toast{display:flex;align-items:flex-start;gap:9px;padding:12px 14px;border-radius:11px;background:#17243a;border:1px solid #33445e;box-shadow:var(--shadow);font-size:11px;color:#e4eefb;animation:toastin .2s ease-out}.toast svg{width:15px;height:15px;flex:0 0 15px;color:var(--cyan);margin-top:1px}.toast.error svg{color:var(--red)}@keyframes toastin{from{transform:translateY(8px);opacity:0}to{transform:translateY(0);opacity:1}}.modal-backdrop{display:none;position:fixed;inset:0;background:rgba(1,5,12,.68);backdrop-filter:blur(7px);z-index:60;align-items:center;justify-content:center;padding:20px}.modal-backdrop.show{display:flex}.modal{width:min(480px,100%);padding:22px;border:1px solid #324057;background:#111a2b;border-radius:16px;box-shadow:var(--shadow)}.modal h2{font-size:15px;margin:0 0 6px}.modal p{font-size:11px;color:var(--muted);margin:0 0 18px}.modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}.mobile-scrim{display:none}
+
+/* Threat graph, forensic snapshot & SOC Recommendations Playbook */
+.graph-card,.forensic-card{padding:17px;min-width:0}.graph-stage{height:270px;position:relative;border:1px solid #223047;border-radius:12px;background:radial-gradient(circle at center,rgba(39,124,150,.08),transparent 58%),linear-gradient(rgba(62,83,116,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(62,83,116,.05) 1px,transparent 1px),#0b1220;background-size:auto,22px 22px,22px 22px,auto;overflow:hidden}.graph-stage svg{height:100%;width:100%;display:block}.graph-empty{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px;color:var(--muted)}.graph-empty svg{width:27px;height:27px;color:#7186a4;margin-bottom:10px}.graph-empty strong{font-size:11px;color:#d4e0ef}.graph-empty p{font-size:10px;max-width:255px;margin:5px 0 0}.graph-legend{display:flex;gap:14px;flex-wrap:wrap;color:#8291ab;font-size:9px;margin-top:12px}.legend-item{display:inline-flex;align-items:center;gap:6px}.legend-dot{width:7px;height:7px;border-radius:50%;background:var(--cyan)}.legend-dot.host{background:var(--purple)}.legend-dot.intel{background:var(--amber)}.forensic-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px}.forensic-field{border:1px solid #243148;border-radius:10px;padding:11px;background:rgba(9,15,27,.55);min-width:0}.forensic-label{font-size:9px;color:#71819b;margin-bottom:5px;letter-spacing:.05em;text-transform:uppercase}.forensic-value{font-size:10px;font-weight:650;color:#d6e2f2;overflow-wrap:anywhere;word-break:break-word;min-height:15px}.forensic-value.pending{color:#687790;font-weight:500}.forensic-footnote{font-size:9px;color:#697891;margin-top:12px;line-height:1.6}
+.rec-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px}.rec-item{border:1px solid #243249;border-radius:11px;padding:13px;background:rgba(10,17,30,.72)}.rec-head{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px}.rec-cat{font-size:11px;font-weight:700;color:#e6f1ff}.rec-act{font-size:10px;color:#9fb0ca;line-height:1.55;margin:0}
+.honeypot-banner{display:none;margin-top:15px;padding:16px;border-radius:13px;border:1.5px solid var(--amber);background:linear-gradient(135deg,rgba(69,18,38,.92),rgba(38,24,54,.95));box-shadow:0 14px 40px rgba(255,113,133,.18)}.honeypot-banner.show{display:block}.honeypot-banner h3{margin:0 0 6px;font-size:14px;color:var(--amber)}.honeypot-banner p{margin:0 0 8px;font-size:11px;color:#ffd8df}.honeypot-meta{font-family:ui-monospace,monospace;font-size:10px;color:#9adcf0}
+@media(max-width:600px){.graph-stage{height:240px}.forensic-grid,.rec-grid{grid-template-columns:1fr;gap:7px}.forensic-field{padding:9px}}
+
+@media(max-width:1200px){.stats-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.feed-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.dashboard-grid{grid-template-columns:minmax(0,1.2fr) minmax(250px,.8fr)}}
+@media(max-width:940px){.sidebar{transform:translateX(-100%);transition:transform .24s ease}.sidebar.open{transform:translateX(0)}.mobile-scrim.show{display:block;position:fixed;inset:0;background:rgba(0,0,0,.56);z-index:15}.main{margin-left:0}.mobile-menu{display:grid}.dashboard-grid,.lower-grid,.work-grid,.rec-grid{grid-template-columns:1fr}.topbar{padding:0 22px}.content{padding:25px 22px 36px}.feed-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:600px){.topbar{height:62px;padding:0 14px}.content{padding:21px 14px 30px}.search-ghost{display:none}.health-pill{padding:7px 8px}.health-pill .health-label{display:none}.page-heading{display:block}.heading-actions{padding-top:14px}.stats-grid{gap:9px}.stat-card{padding:13px}.stat-value{font-size:23px}.dashboard-grid{gap:10px}.scan-card,.risk-card,.work-panel{padding:15px}.scan-input-wrap{flex-direction:column}.scan-input-wrap .btn{width:100%}.input-helper{display:block}.input-helper span{display:block;margin-bottom:3px}.feed-grid{grid-template-columns:1fr 1fr;gap:8px}.feed-card{padding:10px;gap:8px}.feed-logo{width:28px;height:28px;flex-basis:28px}.feed-name{font-size:9px}.feed-type{font-size:8px}.lower-grid{gap:10px}.rules-grid,.report-grid{grid-template-columns:1fr}.section-label{margin-top:21px}.risk-visual{padding:13px 0}.risk-ring{height:135px;width:135px}.heading-actions .btn{flex:1}.form-row{align-items:flex-start;flex-direction:column}.form-row .btn{width:100%}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
+</style>
 </head>
-<body class="min-h-screen selection:bg-cyan-500 selection:text-slate-950">
-
-  <!-- Top Telemetry Navbar -->
-  <nav class="border-b border-slate-800/80 bg-slate-950/90 sticky top-0 z-50 backdrop-blur-md no-print">
-    <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap justify-between items-center gap-3">
-      <div class="flex items-center gap-3">
-        <div class="h-3 w-3 rounded-full bg-emerald-400 animate-pulse"></div>
-        <span class="font-extrabold text-xl tracking-wider text-cyan-400">PHISH<span class="text-white">MATRIX</span> <span class="text-xs font-mono bg-cyan-500/15 text-cyan-300 border border-cyan-500/40 px-2 py-0.5 rounded">v4.0 HARDENED SOAR</span></span>
-      </div>
-      <div class="flex items-center gap-2 text-xs font-mono">
-        <span class="hidden lg:inline-block bg-slate-900 border border-slate-800 px-2.5 py-1.5 rounded text-slate-400">16 Threat Feeds: <strong class="text-emerald-400">ONLINE</strong></span>
-        <span class="hidden md:inline-block bg-emerald-500/10 border border-emerald-500/30 px-2.5 py-1.5 rounded text-emerald-300">🛡️ WAF + SSRF + Prompt Shield: <strong>ACTIVE</strong></span>
-        <a href="/docs" target="_blank" class="bg-slate-900 hover:bg-slate-800 border border-slate-700 px-3 py-1.5 rounded text-cyan-300 transition">OpenAPI</a>
-        <button onclick="window.print()" class="bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 px-3 py-1.5 rounded transition">Export PDF</button>
-      </div>
+<body>
+<div class="app">
+  <aside class="sidebar" id="sidebar" aria-label="Primary navigation">
+    <a class="brand" href="#dashboard" data-nav="dashboard" aria-label="PhishMatrix home">
+      <span class="brand-mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2.8 20 6v5.7c0 4.7-3.4 7.9-8 9.5-4.6-1.6-8-4.8-8-9.5V6l8-3.2Z"/><path d="m8.5 12 2.2 2.2 4.8-5"/></svg></span>
+      <span><span class="brand-name">Phish<span>Matrix</span></span><div class="brand-version">THREAT INTELLIGENCE · 6.0</div></span>
+    </a>
+    <div class="workspace-label">Workspace</div>
+    <nav class="nav" id="mainNav">
+      <button class="nav-item active" data-nav="dashboard"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="7" height="8" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="11" width="7" height="10" rx="1.5"/><rect x="3" y="15" width="7" height="6" rx="1.5"/></svg>Overview</button>
+      <button class="nav-item" data-nav="urlscan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4M8 11h6M11 8v6"/></svg>URL intelligence</button>
+      <button class="nav-item" data-nav="email"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m4 7 8 6 8-6"/></svg>Email forensics</button>
+      <button class="nav-item" data-nav="bulk"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M9 5H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4M9 3h12v12H9z"/><path d="m12 9 2 2 4-4"/></svg>Bulk IOC triage<span class="nav-count">8 max</span></button>
+      <button class="nav-item" data-nav="detections"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 3 3.5 7.5 12 12l8.5-4.5L12 3Z"/><path d="m3.5 12 8.5 4.5 8.5-4.5M3.5 16.5 12 21l8.5-4.5"/></svg>Detection rules</button>
+      <button class="nav-item" data-nav="reports"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M6 3h9l4 4v14H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z"/><path d="M14 3v5h5M8 13h8M8 17h8"/></svg>Reports & evidence</button>
+    </nav>
+    <div class="sidebar-spacer"></div>
+    <div class="sidebar-status">
+      <div class="status-heading"><span class="status-dot" id="sidebarApiDot"></span><span>Analysis engine</span><span style="margin-left:auto;color:#71809a;font-size:9px" id="sidebarApiText">CHECKING</span></div>
+      <div class="status-description" id="sidebarApiDetail">Checking API reachability…</div>
+      <button class="tiny-link" id="openApiSettings">Configure connection ↗</button>
     </div>
-  </nav>
-
-  <main class="max-w-7xl mx-auto px-4 py-8">
-    <div class="text-center mb-7">
-      <h1 class="text-3xl md:text-5xl font-black tracking-tight text-white">
-        Enterprise <span class="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-teal-300 to-indigo-400">Threat Intelligence</span> & Phishing Orchestrator
-      </h1>
-      <p class="text-slate-400 mt-2 text-sm max-w-4xl mx-auto">
-        VirusTotal v3 • Google Web Risk • AbuseIPDB • URLScan • AlienVault OTX • Pulsedive • GreyNoise • Shodan • Abuse.ch URLhaus & ThreatFox • Maltrail GitHub • Project Honey Pot HTTP:BL • crt.sh CT Logs • Failover AI Analyst
-      </p>
-    </div>
-
-    <!-- Workspace Switcher -->
-    <div class="flex flex-wrap justify-center gap-2 mb-6 no-print">
-      <button onclick="switchWorkspace('url')" id="ws-btn-url" class="px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider bg-cyan-500 text-slate-950 transition">1. URL & Domain Investigation</button>
-      <button onclick="switchWorkspace('email')" id="ws-btn-email" class="px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider bg-slate-900 text-slate-300 border border-slate-800 hover:border-slate-700 transition">2. Email Header & EML Triage</button>
-      <button onclick="switchWorkspace('bulk')" id="ws-btn-bulk" class="px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider bg-slate-900 text-slate-300 border border-slate-800 hover:border-slate-700 transition">3. Bulk IOC Scanner</button>
-      <button onclick="switchWorkspace('cli')" id="ws-btn-cli" class="px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider bg-slate-900 text-slate-300 border border-slate-800 hover:border-slate-700 transition">4. Kali Linux CLI Mode</button>
-    </div>
-
-    <!-- WORKSPACE 1: URL SCANNER -->
-    <div id="ws-url">
-      <div class="cyber-card cyber-glow p-3 rounded-2xl mb-4 no-print">
-        <div class="flex flex-col md:flex-row gap-3">
-          <input id="urlInput" type="text" placeholder="Enter suspicious URL, domain, or IPv4 (e.g., http://testsafebrowsing.appspot.com/s/phishing.html)..."
-                 onkeydown="if(event.key==='Enter') runScan()"
-                 class="w-full bg-slate-950/90 border border-slate-800 rounded-xl px-4 py-3.5 text-slate-100 focus:outline-none focus:border-cyan-500 font-mono text-sm" />
-          <button onclick="runScan()" id="scanBtn"
-                  class="bg-gradient-to-r from-cyan-500 to-teal-400 hover:from-cyan-400 hover:to-teal-300 text-slate-950 font-extrabold px-8 py-3.5 rounded-xl transition whitespace-nowrap shadow-lg">
-            Investigate Target
-          </button>
+    <div class="sidebar-bottom"><span class="avatar">AK</span><span class="user-meta"><div class="user-name">Ayush Kumar Patel</div><div class="user-role">SOC & Threat Intel Lead</div></span><button class="icon-button" id="settingsBtn" aria-label="API connection settings" title="API connection settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="3"/><path d="m19.4 15 .1.1 1.1.9-1.5 2.6-1.4-.6a7.8 7.8 0 0 1-1.5.9l-.2 1.5h-3l-.2-1.5a7.8 7.8 0 0 1-1.5-.9l-1.4.6-1.5-2.6 1.1-.9a7.5 7.5 0 0 1 0-1.8l-1.1-.9 1.5-2.6 1.4.6a7.8 7.8 0 0 1 1.5-.9l.2-1.5h3l.2 1.5a7.8 7.8 0 0 1 1.5.9l1.4-.6 1.5 2.6-1.1.9a7.5 7.5 0 0 1 0 1.7Z" transform="translate(-1 -1) scale(1.08)"/></svg></button></div>
+  </aside>
+  <div class="mobile-scrim" id="mobileScrim"></div>
+  <main class="main">
+    <header class="topbar">
+      <div style="display:flex;align-items:center;gap:12px;min-width:0"><button class="icon-button mobile-menu" id="mobileMenu" aria-label="Open navigation"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button><div class="breadcrumbs"><span>Workspace</span><span class="crumb-sep">/</span><strong id="breadcrumbCurrent">Overview</strong></div></div>
+      <div class="top-actions"><button class="search-ghost" id="globalSearch"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg><span>Search workspace</span><span class="keycap">⌘ K</span></button><div class="health-pill"><span class="status-dot" id="topApiDot"></span><span class="health-label">API connection</span><strong id="topApiText">Checking</strong></div><button class="icon-button" id="topSettings" aria-label="API settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-1.7 2.9-.2-.1a1.7 1.7 0 0 0-1.8.1 1.7 1.7 0 0 0-.8 1.5v.2h-3.4v-.2a1.7 1.7 0 0 0-1.1-1.6 1.7 1.7 0 0 0-1.7.2l-.2.1-1.7-2.9.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H6v-3.4h.2a1.7 1.7 0 0 0 1.6-1.1 1.7 1.7 0 0 0-.2-1.7l-.1-.2 2.9-1.7.1.1a1.7 1.7 0 0 0 1.9.3 1.7 1.7 0 0 0 1-1.5V4h3.4v.2a1.7 1.7 0 0 0 1.1 1.6 1.7 1.7 0 0 0 1.7-.2l.2-.1 1.7 2.9-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.5 1h.2v3.4h-.2a1.7 1.7 0 0 0-1.6.2Z" transform="translate(-1 -1) scale(1.04)"/></svg></button></div>
+    </header>
+    <div class="content">
+      <section class="view active" id="view-dashboard" data-title="Overview">
+        <div class="page-heading"><div><div class="eyebrow">Threat operations center</div><h1>Investigation overview</h1><p class="page-subtitle">A single workspace for suspicious URLs, phishing emails, 16-source threat intelligence, automated remediation playbooks and defensive response artifacts.</p></div><div class="heading-actions"><button class="btn" id="demoBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 3v3M12 18v3M3 12h3m12 0h3M5.6 5.6l2.1 2.1m8.6 8.6 2.1 2.1m0-12.8-2.1 2.1m-8.6 8.6-2.1 2.1"/><circle cx="12" cy="12" r="5"/></svg>View demo report</button><button class="btn btn-primary" id="newScanBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 5v14M5 12h14"/></svg>New investigation</button></div></div>
+        <div class="grid stats-grid">
+          <div class="card stat-card"><div class="stat-top"><span>Investigations this session</span><span class="stat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg></span></div><div class="stat-value" id="statScans">0</div><div class="stat-foot">Your current browser session</div></div>
+          <div class="card stat-card"><div class="stat-top"><span>High-risk findings</span><span class="stat-icon" style="color:var(--red)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="m12 3 9 17H3L12 3Z"/><path d="M12 9v5m0 3h.01"/></svg></span></div><div class="stat-value" id="statHigh">—</div><div class="stat-foot">Populated from completed analysis</div></div>
+          <div class="card stat-card"><div class="stat-top"><span>Intelligence sources</span><span class="stat-icon" style="color:var(--purple)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="8"/><path d="M4.9 8h14.2M4.9 16h14.2M12 4c2 2.2 3 4.9 3 8s-1 5.8-3 8c-2-2.2-3-4.9-3-8s1-5.8 3-8Z"/></svg></span></div><div class="stat-value">16<span style="font-size:13px;color:var(--muted);font-weight:600">+</span></div><div class="stat-foot">Parallel OSINT, Commercial & AI Feeds</div></div>
+          <div class="card stat-card"><div class="stat-top"><span>API & WAF status</span><span class="stat-icon" style="color:var(--green)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 12h4l3-7 4 14 3-7h2"/></svg></span></div><div class="stat-value" id="statApi" style="font-size:20px">Checking…</div><div class="stat-foot" id="statApiNote">Zero-Trust WAF & 1000+ Whitelist Active</div></div>
+        </div>
+        <div class="grid dashboard-grid">
+          <div class="card scan-card" id="quickScanCard"><div class="card-heading"><span class="heading-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4M11 7v8M7 11h8"/></svg></span><div><h2>Investigate an indicator</h2><p>Start with a URL, domain or IPv4 address. Results correlate 16 intelligence engines and AI SOC analysis.</p></div></div>
+            <form id="urlScanForm"><label class="input-label" for="urlInput">URL, domain or IPv4</label><div class="scan-input-wrap"><input class="scan-input" id="urlInput" name="url" placeholder="https://suspicious-domain.example/login" autocomplete="off" spellcheck="false" required aria-describedby="urlHelp"/><button class="btn btn-primary" id="scanSubmit" type="submit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="m5 12 5 5L20 7"/></svg>Analyze IOC</button></div><div class="input-helper" id="urlHelp"><span>Protected by Active Deception WAF, SSRF Guard & 1,000+ Domain Whitelist.</span><span>URL · Domain · IP</span></div><div class="example-chips"><button class="example-chip" type="button" data-example="https://verify-human-cloudflare-cdn.xyz">ClickFix payload simulation</button><button class="example-chip" type="button" data-example="https://sbi-kyc-update-pan.top">Brand & Telegram C2 simulation</button><button class="example-chip" type="button" data-example="https://microsoft-oauth-login-portal.icu">OAuth BitB simulation</button><button class="example-chip" type="button" data-example="https://github.com">Known benign baseline (github.com)</button></div></form>
+            <div class="scan-progress" id="scanProgress" role="status" aria-live="polite"><div class="progress-head"><span id="progressText">Preparing investigation…</span><span id="progressElapsed">16-Engine Parallel Dispatch</span></div><div class="progress-track"><div class="progress-bar"></div></div></div>
+            <div class="honeypot-banner" id="honeypotBanner" role="alert"><h3 id="hpBannerTitle">LOL 😂 Nice Try! PhishMatrix Honeypot Triggered! 🍯🤡</h3><p id="hpBannerDetail"></p><div class="honeypot-meta" id="hpBannerMeta"></div></div>
+            <div class="result-banner" id="scanResultBanner" aria-live="polite"><h3 id="resultBannerTitle">Investigation result</h3><p id="resultBannerText"></p><div id="rawOutputMount"></div></div>
+          </div>
+          <div class="card risk-card"><div class="risk-title"><h2>Unified risk assessment</h2><span class="pill" id="riskPill">NO CASE</span></div><div class="risk-visual"><div class="risk-ring" id="riskRing"><div class="risk-ring-inner"><div class="risk-number" id="riskValue">—<small>/100</small></div><div class="risk-caption" id="riskCaption">Awaiting evidence</div></div></div></div><div class="risk-empty-note" id="riskNote">Run an investigation to calculate a risk score.</div><div class="risk-divider"></div><div class="risk-facts"><div class="fact-row"><span>Indicator</span><span id="riskIndicator">Not selected</span></div><div class="fact-row"><span>Verdict</span><span id="riskVerdict">Unknown</span></div><div class="fact-row"><span>Evidence state</span><span id="riskEvidence">Not collected</span></div></div></div>
         </div>
 
-        <div class="flex flex-wrap items-center gap-2 mt-3 pt-2 border-t border-slate-800/80 text-xs">
-          <span class="text-slate-400 font-mono">⚡ Threat Simulation Vectors:</span>
-          <button onclick="simulateAttack('sbi-kyc-update-pan.top')" class="bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 border border-rose-500/30 px-2.5 py-1 rounded font-mono transition">Credential Harvesting & Telegram C2 Exfil</button>
-          <button onclick="simulateAttack('verify-human-cloudflare-cdn.xyz')" class="bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 px-2.5 py-1 rounded font-mono transition">ClickFix Clipboard PowerShell Payload</button>
-          <button onclick="simulateAttack('microsoft-oauth-login-portal.icu')" class="bg-purple-500/15 hover:bg-purple-500/25 text-purple-300 border border-purple-500/30 px-2.5 py-1 rounded font-mono transition">BitB OAuth Deception & Webhook Exfil</button>
-          <button onclick="simulateAttack('github.com')" class="bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 px-2.5 py-1 rounded font-mono transition">Verified Benign Baseline (github.com)</button>
-          
-        </div>
-      </div>
-
-      <!-- WAF / SSRF Security Alert Box -->
-      <div id="wafAlertBox" class="hidden bg-gradient-to-r from-rose-950/95 via-amber-950/90 to-purple-950/95 border-2 border-amber-400 p-6 rounded-2xl mb-6 shadow-2xl">
-        <div class="flex items-center gap-4">
-          <div class="text-5xl animate-bounce">😂🍯🤡</div>
-          <div class="space-y-1 font-mono">
-            <h3 id="hpTitle" class="text-xl font-black text-amber-300 tracking-wide">LOL 😂 Nice Try! You Stepped Into the PhishMatrix Honeypot!</h3>
-            <p id="hpDetail" class="text-sm text-rose-200 font-bold"></p>
-            <div class="text-xs text-slate-300 pt-1">
-              <span class="bg-rose-500/30 border border-rose-400 px-2 py-0.5 rounded text-rose-200">Attack Vector: <strong id="hpVector"></strong></span>
-              <span class="ml-2 bg-slate-900 border border-slate-700 px-2 py-0.5 rounded text-cyan-300">Captured Payload: <code id="hpPayload"></code></span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Live Terminal Matrix Loader -->
-      <div id="loaderBox" class="hidden cyber-card p-6 rounded-2xl mb-6 font-mono text-xs space-y-2 border-cyan-500/40">
-        <div class="text-cyan-400 font-bold mb-2 flex items-center gap-2">
-          <span class="animate-spin inline-block w-4 h-4 border-2 border-cyan-400 border-t-transparent rounded-full"></span>
-          EXECUTING 16-ENGINE PARALLEL THREAT ORCHESTRATION...
-        </div>
-        <div id="loaderSteps" class="space-y-1 text-slate-300"></div>
-      </div>
-
-      <!-- RESULTS CONTAINER -->
-      <div id="resultsContainer" class="hidden space-y-6">
-
-        <!-- Top Executive Banner -->
-        <div class="cyber-card p-6 rounded-2xl grid grid-cols-1 lg:grid-cols-4 gap-6">
-          <div class="flex flex-col items-center justify-center border-b lg:border-b-0 lg:border-r border-slate-800 pb-4 lg:pb-0 lg:pr-4">
-            <span class="text-xs font-mono uppercase tracking-widest text-slate-400">Unified Threat Score</span>
-            <div id="resScore" class="text-6xl font-black mt-2">0<span class="text-2xl text-slate-500">/100</span></div>
-            <span id="resVerdict" class="mt-3 px-4 py-1 rounded-full text-xs font-extrabold uppercase tracking-wider">CLEAN</span>
-            <span id="resTime" class="text-[11px] font-mono text-slate-500 mt-2"></span>
-          </div>
-
-          <div class="lg:col-span-3 space-y-3">
-            <div class="flex flex-wrap justify-between items-center gap-2 border-b border-slate-800 pb-2">
-              <div>
-                <span class="text-xs text-slate-400 font-mono">DEFANGED IOC:</span>
-                <span id="resDefangedUrl" class="font-mono text-sm text-cyan-300 break-all ml-1"></span>
-              </div>
-              <button onclick="copyDefanged()" class="bg-slate-800 hover:bg-slate-700 text-xs font-mono px-3 py-1 rounded border border-slate-700 text-cyan-300 no-print">Copy Defanged IOCs</button>
-            </div>
-
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs font-mono">
-              <div class="bg-slate-950/70 p-2.5 rounded-lg border border-slate-800/80">
-                <span class="text-slate-500 block">Domain</span>
-                <span id="resDomain" class="text-slate-200 font-bold break-all"></span>
-              </div>
-              <div class="bg-slate-950/70 p-2.5 rounded-lg border border-slate-800/80">
-                <span class="text-slate-500 block">Resolved IPv4 & ASN</span>
-                <span id="resIpAsn" class="text-amber-300 font-bold"></span>
-              </div>
-              <div class="bg-slate-950/70 p-2.5 rounded-lg border border-slate-800/80">
-                <span class="text-slate-500 block">WHOIS Domain Age</span>
-                <span id="resDomainAge" class="text-emerald-300 font-bold"></span>
-              </div>
-              <div class="bg-slate-950/70 p-2.5 rounded-lg border border-slate-800/80">
-                <span class="text-slate-500 block">Target / Impersonation</span>
-                <span id="resBrand" class="text-rose-300 font-bold"></span>
-              </div>
-            </div>
-
-            <div>
-              <div class="flex flex-wrap items-center gap-2 mb-1.5">
-                <span class="text-xs font-mono uppercase text-slate-400">Detection Triggers & Forensic Evidence:</span>
-                <div id="mitreContainer" class="flex flex-wrap gap-1"></div>
-              </div>
-              <ul id="resTriggers" class="grid grid-cols-1 md:grid-cols-2 gap-1.5 text-xs font-mono"></ul>
-            </div>
-          </div>
+        <!-- NEW: Automated SOC Remediation & Actionable Recommendations Playbook -->
+        <div class="section-label"><div><h2>Recommended SOC remediation playbook</h2><p>Prioritized containment, identity and threat-hunting actions derived from scan evidence.</p></div><span class="pill" id="recState">AWAITING SCAN</span></div>
+        <div class="card panel-padding" id="recCard">
+          <div class="empty-state" id="recEmpty" style="min-height:110px"><span class="empty-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 2.8 20 6v5.7c0 4.7-3.4 7.9-8 9.5-4.6-1.6-8-4.8-8-9.5V6l8-3.2Z"/><path d="m8.5 12 2.2 2.2 4.8-5"/></svg></span><strong>No remediation playbook generated yet</strong><p>Complete an indicator scan to receive prioritized P1/P2 containment and threat-hunting recommendations.</p></div>
+          <div class="rec-grid" id="recGrid" style="display:none"></div>
         </div>
 
-        <!-- FAILOVER AI SOC ANALYST CARD -->
-        <div class="cyber-card p-6 rounded-2xl border-cyan-500/30">
-          <div class="flex flex-wrap justify-between items-center gap-3 mb-4 border-b border-slate-800 pb-3">
-            <div class="flex items-center gap-2">
-              <span class="bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 px-2.5 py-1 rounded text-xs font-mono font-bold">🤖 AUTONOMOUS AI SOC THREAT ANALYST</span>
-              <span id="aiConfidence" class="text-xs font-mono text-slate-400"></span>
-            </div>
-            <div class="text-xs font-mono text-slate-400">
-              Active Failover Engine: <span id="aiEngineName" class="text-cyan-400 font-bold">Llama-3.3-70B</span>
-            </div>
-          </div>
-
-          <div class="bg-slate-950/90 p-5 rounded-xl border border-slate-800">
-            <div class="text-[11px] font-mono uppercase text-slate-500 mb-1.5">Tier-3 Executive Threat Assessment</div>
-            <p id="aiSocBox" class="text-sm text-slate-200 leading-relaxed font-mono"></p>
-          </div>
-
-          <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4 pt-4 border-t border-slate-800/80 text-xs font-mono">
-            <div>
-              <div class="flex justify-between mb-1"><span>Urgency Lure</span><span id="radUrgency">0%</span></div>
-              <div class="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden"><div id="barUrgency" class="bg-rose-500 h-full" style="width:0%"></div></div>
-            </div>
-            <div>
-              <div class="flex justify-between mb-1"><span>Authority Spoofing</span><span id="radAuth">0%</span></div>
-              <div class="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden"><div id="barAuth" class="bg-amber-500 h-full" style="width:0%"></div></div>
-            </div>
-            <div>
-              <div class="flex justify-between mb-1"><span>Coercion / Panic Index</span><span id="radFear">0%</span></div>
-              <div class="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden"><div id="barFear" class="bg-purple-500 h-full" style="width:0%"></div></div>
-            </div>
-            <div>
-              <div class="flex justify-between mb-1"><span>Technical Evasion</span><span id="radTech">0%</span></div>
-              <div class="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden"><div id="barTech" class="bg-cyan-400 h-full" style="width:0%"></div></div>
-            </div>
-          </div>
+        <div class="section-label"><div><h2>Intelligence source coverage (16 Engines)</h2><p>Source state updates in real time when the backend returns provider-level telemetry.</p></div><button class="section-action" id="refreshApiBtn">Refresh connection ↻</button></div>
+        <div class="grid feed-grid" id="feedGrid">
+          <div class="card feed-card"><span class="feed-logo">VT</span><div class="feed-info"><div class="feed-name">VirusTotal</div><div class="feed-type">Reputation & detections</div></div><span class="feed-state"></span></div>
+          <div class="card feed-card"><span class="feed-logo">WR</span><div class="feed-info"><div class="feed-name">Google Web Risk</div><div class="feed-type">Malicious URL checks</div></div><span class="feed-state"></span></div>
+          <div class="card feed-card"><span class="feed-logo">IP</span><div class="feed-info"><div class="feed-name">AbuseIPDB</div><div class="feed-type">IP abuse telemetry</div></div><span class="feed-state"></span></div>
+          <div class="card feed-card"><span class="feed-logo">US</span><div class="feed-info"><div class="feed-name">URLScan.io</div><div class="feed-type">Sandbox artifacts</div></div><span class="feed-state"></span></div>
+          <div class="card feed-card"><span class="feed-logo">OTX</span><div class="feed-info"><div class="feed-name">AlienVault OTX</div><div class="feed-type">Threat pulses</div></div><span class="feed-state"></span></div>
+          <div class="card feed-card"><span class="feed-logo">PD</span><div class="feed-info"><div class="feed-name">Pulsedive</div><div class="feed-type">Community intelligence</div></div><span class="feed-state"></span></div>
+          <div class="card feed-card"><span class="feed-logo">GN</span><div class="feed-info"><div class="feed-name">GreyNoise</div><div class="feed-type">Internet scanner context</div></div><span class="feed-state"></span></div>
+          <div class="card feed-card"><span class="feed-logo">SH</span><div class="feed-info"><div class="feed-name">Shodan / InternetDB</div><div class="feed-type">Exposure & CVE context</div></div><span class="feed-state"></span></div>
+          <div class="card feed-card"><span class="feed-logo">UH</span><div class="feed-info"><div class="feed-name">URLhaus / ThreatFox</div><div class="feed-type">Malware & C2 indicators</div></div><span class="feed-state"></span></div>
+          <div class="card feed-card"><span class="feed-logo">MT</span><div class="feed-info"><div class="feed-name">Maltrail GitHub</div><div class="feed-type">stamparm/maltrail feeds</div></div><span class="feed-state"></span></div>
+          <div class="card feed-card"><span class="feed-logo">HP</span><div class="feed-info"><div class="feed-name">Project Honey Pot</div><div class="feed-type">HTTP:BL DNS blacklist</div></div><span class="feed-state"></span></div>
+          <div class="card feed-card"><span class="feed-logo">MS</span><div class="feed-info"><div class="feed-name">MalShare Malware DB</div><div class="feed-type">Payload hash intelligence</div></div><span class="feed-state"></span></div>
+          <div class="card feed-card"><span class="feed-logo">MB</span><div class="feed-info"><div class="feed-name">Mailboxlayer Intel</div><div class="feed-type">MX & disposable mail audit</div></div><span class="feed-state"></span></div>
+          <div class="card feed-card"><span class="feed-logo">GEO</span><div class="feed-info"><div class="feed-name">IP-API Geo/Proxy</div><div class="feed-type">VPN, proxy & hosting check</div></div><span class="feed-state"></span></div>
+          <div class="card feed-card"><span class="feed-logo">CT</span><div class="feed-info"><div class="feed-name">Certificate Transparency</div><div class="feed-type">crt.sh certs & subdomains</div></div><span class="feed-state"></span></div>
+          <div class="card feed-card"><span class="feed-logo">HX</span><div class="feed-info"><div class="feed-name">RDAP & Heuristics</div><div class="feed-type">WHOIS, lexical & entropy</div></div><span class="feed-state"></span></div>
         </div>
 
-        <!-- 16-ENGINE ENTERPRISE THREAT INTEL MATRIX -->
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div class="cyber-card p-4 rounded-xl">
-            <span class="text-[11px] font-mono uppercase text-slate-400">1. VirusTotal v3</span>
-            <div id="engVt" class="text-2xl font-black mt-1">0 / 92</div>
-            <div id="engVtSub" class="text-xs text-slate-400 mt-1 font-mono truncate"></div>
-          </div>
-          <div class="cyber-card p-4 rounded-xl">
-            <span class="text-[11px] font-mono uppercase text-slate-400">2. Google Web Risk</span>
-            <div id="engWr" class="text-2xl font-black mt-1">CLEAN</div>
-            <div id="engWrSub" class="text-xs text-slate-400 mt-1 font-mono truncate"></div>
-          </div>
-          <div class="cyber-card p-4 rounded-xl">
-            <span class="text-[11px] font-mono uppercase text-slate-400">3. AbuseIPDB</span>
-            <div id="engAbuse" class="text-2xl font-black mt-1">0% Risk</div>
-            <div id="engAbuseSub" class="text-xs text-slate-400 mt-1 font-mono truncate"></div>
-          </div>
-          <div class="cyber-card p-4 rounded-xl">
-            <span class="text-[11px] font-mono uppercase text-slate-400">4. URLScan.io Sandbox</span>
-            <div id="engUs" class="text-lg font-bold mt-1 truncate">Ready</div>
-            <a id="engUsLink" href="#" target="_blank" rel="noopener noreferrer" class="text-xs text-cyan-400 underline font-mono mt-1 inline-block">Open Full Sandbox ↗</a>
-          </div>
-          <div class="cyber-card p-4 rounded-xl">
-            <span class="text-[11px] font-mono uppercase text-slate-400">5. Abuse.ch URLhaus</span>
-            <div id="engUh" class="text-xl font-bold mt-1">CLEAN</div>
-            <div id="engUhSub" class="text-xs text-slate-400 mt-1 font-mono truncate">Authenticated Feed</div>
-          </div>
-          <div class="cyber-card p-4 rounded-xl">
-            <span class="text-[11px] font-mono uppercase text-slate-400">6. Abuse.ch ThreatFox</span>
-            <div id="engTf" class="text-xl font-bold mt-1">CLEAN</div>
-            <div id="engTfSub" class="text-xs text-slate-400 mt-1 font-mono truncate">Botnet C2 IOC Feed</div>
-          </div>
-          <div class="cyber-card p-4 rounded-xl">
-            <span class="text-[11px] font-mono uppercase text-slate-400">7. Maltrail GitHub Repo</span>
-            <div id="engMt" class="text-xl font-bold mt-1">CLEAN</div>
-            <div id="engMtSub" class="text-xs text-slate-400 mt-1 font-mono truncate">stamparm/maltrail</div>
-          </div>
-          <div class="cyber-card p-4 rounded-xl">
-            <span class="text-[11px] font-mono uppercase text-slate-400">8. Project Honey Pot</span>
-            <div id="engHp" class="text-xl font-bold mt-1">0 Score</div>
-            <div id="engHpSub" class="text-xs text-slate-400 mt-1 font-mono truncate">HTTP:BL DNS Blacklist</div>
-          </div>
-          <div class="cyber-card p-4 rounded-xl">
-            <span class="text-[11px] font-mono uppercase text-slate-400">9. AlienVault OTX</span>
-            <div id="engOtx" class="text-xl font-bold mt-1">0 Pulses</div>
-            <div id="engOtxSub" class="text-xs text-slate-400 mt-1 font-mono truncate">Global Threat Pulses</div>
-          </div>
-          <div class="cyber-card p-4 rounded-xl">
-            <span class="text-[11px] font-mono uppercase text-slate-400">10. Pulsedive Intel</span>
-            <div id="engPd" class="text-xl font-bold mt-1">LOW</div>
-            <div id="engPdSub" class="text-xs text-slate-400 mt-1 font-mono truncate">Community Risk Feed</div>
-          </div>
-          <div class="cyber-card p-4 rounded-xl">
-            <span class="text-[11px] font-mono uppercase text-slate-400">11. GreyNoise Intel</span>
-            <div id="engGn" class="text-xl font-bold mt-1">Unobserved</div>
-            <div id="engGnSub" class="text-xs text-slate-400 mt-1 font-mono truncate">Scanner / Riot Sensor</div>
-          </div>
-          <div class="cyber-card p-4 rounded-xl">
-            <span class="text-[11px] font-mono uppercase text-slate-400">12. Shodan Host Recon</span>
-            <div id="engSho" class="text-xl font-bold mt-1">Ports: 80, 443</div>
-            <div id="engShoSub" class="text-xs text-slate-400 mt-1 font-mono truncate">Open Ports & CVEs</div>
-          </div>
-          <div class="cyber-card p-4 rounded-xl">
-            <span class="text-[11px] font-mono uppercase text-slate-400">13. crt.sh CT Logs</span>
-            <div id="engCrt" class="text-xl font-bold mt-1">Verified</div>
-            <div id="engCrtSub" class="text-xs text-slate-400 mt-1 font-mono truncate">Certificate Transparency</div>
-          </div>
-          <div class="cyber-card p-4 rounded-xl">
-            <span class="text-[11px] font-mono uppercase text-slate-400">14. HudsonRock DarkWeb</span>
-            <div id="engHr" class="text-xl font-bold mt-1">0 Records</div>
-            <div id="engHrSub" class="text-xs text-slate-400 mt-1 font-mono truncate">Infostealer Logs</div>
-          </div>
-          <div class="cyber-card p-4 rounded-xl">
-            <span class="text-[11px] font-mono uppercase text-slate-400">15. RDAP + Port-43 WHOIS</span>
-            <div id="engWhois" class="text-lg font-bold mt-1 truncate">Verified</div>
-            <div id="engWhoisSub" class="text-xs text-slate-400 mt-1 font-mono truncate"></div>
-          </div>
-          <div class="cyber-card p-4 rounded-xl">
-            <span class="text-[11px] font-mono uppercase text-slate-400">16. Zero-Day Heuristics</span>
-            <div id="engHeur" class="text-2xl font-black mt-1">0 / 95</div>
-            <div id="engHeurSub" class="text-xs text-slate-400 mt-1 font-mono truncate">Entropy & Lexical Score</div>
-          </div>
+        <div class="section-label"><div><h2>Infrastructure relationships</h2><p>Host, registration and intelligence edges are shown only when returned in scan evidence.</p></div><span class="pill" id="graphState">NO GRAPH DATA</span></div>
+        <div class="grid lower-grid">
+          <div class="card graph-card"><div class="panel-head"><div><h2>Threat relationship graph</h2><p>IOC · host · registration · provider evidence</p></div><button class="section-action" id="graphReset" type="button">Reset view ↻</button></div><div class="graph-stage" id="graphStage"><div class="graph-empty" id="graphEmpty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="5" cy="12" r="2.5"/><circle cx="18.5" cy="5" r="2.5"/><circle cx="18.5" cy="19" r="2.5"/><path d="m7.2 10.8 9-4.5M7.2 13.2l9 4.5"/></svg><strong>No relationship data yet</strong><p>Run a scan or open the synthetic demo to preview the relationship view.</p></div><svg id="graphSvg" viewBox="0 0 620 270" role="img" aria-label="Threat infrastructure relationships" style="display:none"></svg></div><div class="graph-legend"><span class="legend-item"><span class="legend-dot"></span>Indicator</span><span class="legend-item"><span class="legend-dot host"></span>Infrastructure</span><span class="legend-item"><span class="legend-dot intel"></span>Intelligence</span><span id="graphDemoNote" style="margin-left:auto"></span></div></div>
+          <div class="card forensic-card"><div class="panel-head"><div><h2>Forensic snapshot</h2><p>Registration, transport security and DNS evidence</p></div><span class="pill" id="forensicState">AWAITING SCAN</span></div><div class="forensic-grid" id="forensicGrid">
+            <div class="forensic-field"><div class="forensic-label">Registrar</div><div class="forensic-value pending" data-forensic="registrar">Awaiting evidence</div></div><div class="forensic-field"><div class="forensic-label">Domain age</div><div class="forensic-value pending" data-forensic="age">Awaiting evidence</div></div>
+            <div class="forensic-field"><div class="forensic-label">TLS / HTTPS</div><div class="forensic-value pending" data-forensic="tls">Awaiting evidence</div></div><div class="forensic-field"><div class="forensic-label">Certificate issuer</div><div class="forensic-value pending" data-forensic="issuer">Awaiting evidence</div></div>
+            <div class="forensic-field"><div class="forensic-label">DNS A records</div><div class="forensic-value pending" data-forensic="dnsA">Awaiting evidence</div></div><div class="forensic-field"><div class="forensic-label">DNS MX records</div><div class="forensic-value pending" data-forensic="dnsMx">Awaiting evidence</div></div>
+            <div class="forensic-field"><div class="forensic-label">SPF configured</div><div class="forensic-value pending" data-forensic="spf">Awaiting evidence</div></div><div class="forensic-field"><div class="forensic-label">DMARC policy</div><div class="forensic-value pending" data-forensic="dmarc">Awaiting evidence</div></div>
+          </div><div class="forensic-footnote">All fields are populated directly from live RDAP/Port-43 WHOIS, TLS handshake inspection, and DNS resolvers.</div></div>
         </div>
-
-        <!-- DEEP FORENSICS SUB-TABS -->
-        <div class="cyber-card rounded-2xl overflow-hidden">
-          <div class="flex flex-wrap border-b border-slate-800 bg-slate-950/60 no-print">
-            <button onclick="switchTab('graph')" id="tab-btn-graph" class="px-5 py-3 text-xs font-mono font-bold uppercase border-b-2 border-cyan-400 text-cyan-300">🕸️ Attack Topology Graph & Screenshot</button>
-            <button onclick="switchTab('whois')" id="tab-btn-whois" class="px-5 py-3 text-xs font-mono font-bold uppercase text-slate-400 hover:text-slate-200">🌐 Deep WHOIS, SSL & DNS Forensics</button>
-            <button onclick="switchTab('dom')" id="tab-btn-dom" class="px-5 py-3 text-xs font-mono font-bold uppercase text-slate-400 hover:text-slate-200">🕵️‍♂️ DOM Hunter, C2 Unmasker & crt.sh</button>
-            <button onclick="switchTab('soc')" id="tab-btn-soc" class="px-5 py-3 text-xs font-mono font-bold uppercase text-slate-400 hover:text-slate-200">🛡️ Blue-Team Rules (YARA/Sigma/SPL) & Takedown</button>
-          </div>
-
-          <div class="p-6">
-            <div id="tab-graph" class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <div class="lg:col-span-2">
-                <div class="flex justify-between items-center mb-2">
-                  <span class="text-xs font-mono uppercase text-slate-400">Interactive Threat Infrastructure Graph (Drag & Zoom)</span>
-                  <span class="text-[11px] font-mono text-cyan-400">Maltego / Cortex XDR View</span>
-                </div>
-                <div id="networkGraph" class="w-full h-80 bg-slate-950 rounded-xl border border-slate-800"></div>
-              </div>
-              <div>
-                <span class="text-xs font-mono uppercase text-slate-400 block mb-2">Isolated Sandbox Visual Preview</span>
-                <div class="bg-slate-950 rounded-xl border border-slate-800 overflow-hidden h-80 flex flex-col justify-between p-2">
-                  <img id="sandboxImg" src="" alt="Target Preview" class="w-full h-64 object-cover rounded-lg border border-slate-800/80" />
-                  <div class="flex justify-between items-center px-1 pt-1 text-[11px] font-mono text-slate-400">
-                    <span id="sandboxTitle" class="truncate"></span>
-                    <a id="shodanFaviconLink" href="#" target="_blank" rel="noopener noreferrer" class="text-cyan-400 hover:underline whitespace-nowrap ml-2">Hunt Favicon on Shodan ↗</a>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div id="tab-whois" class="hidden grid grid-cols-1 md:grid-cols-3 gap-6 font-mono text-xs">
-              <div class="bg-slate-950/80 p-4 rounded-xl border border-slate-800 space-y-2">
-                <h4 class="text-cyan-400 font-bold uppercase border-b border-slate-800 pb-1.5">RDAP & Port-43 WHOIS</h4>
-                <div><span class="text-slate-500">Registrar:</span> <span id="wRegistrar" class="text-slate-200"></span></div>
-                <div><span class="text-slate-500">Created Date:</span> <span id="wCreated" class="text-slate-200"></span></div>
-                <div><span class="text-slate-500">Expiry Date:</span> <span id="wExpiry" class="text-slate-200"></span></div>
-                <div><span class="text-slate-500">Domain Age:</span> <span id="wAge" class="text-amber-300 font-bold"></span></div>
-                <div><span class="text-slate-500">Abuse Email:</span> <span id="wAbuse" class="text-rose-300"></span></div>
-                <div><span class="text-slate-500">Nameservers:</span> <div id="wNs" class="text-slate-300 mt-1"></div></div>
-              </div>
-
-              <div class="bg-slate-950/80 p-4 rounded-xl border border-slate-800 space-y-2">
-                <h4 class="text-cyan-400 font-bold uppercase border-b border-slate-800 pb-1.5">SSL / TLS Certificate Audit</h4>
-                <div><span class="text-slate-500">HTTPS Enabled:</span> <span id="sEnabled"></span></div>
-                <div><span class="text-slate-500">Issuer CA:</span> <span id="sIssuer" class="text-slate-200"></span></div>
-                <div><span class="text-slate-500">Subject CN:</span> <span id="sSubject" class="text-slate-200"></span></div>
-                <div><span class="text-slate-500">Valid From:</span> <span id="sFrom" class="text-slate-300"></span></div>
-                <div><span class="text-slate-500">Valid Until:</span> <span id="sUntil" class="text-slate-300"></span></div>
-                <div><span class="text-slate-500">Protocol:</span> <span id="sProto" class="text-emerald-300"></span></div>
-              </div>
-
-              <div class="bg-slate-950/80 p-4 rounded-xl border border-slate-800 space-y-2">
-                <h4 class="text-cyan-400 font-bold uppercase border-b border-slate-800 pb-1.5">DNS & Spoofing Readiness</h4>
-                <div><span class="text-slate-500">A Records:</span> <span id="dA" class="text-slate-200"></span></div>
-                <div><span class="text-slate-500">MX Records:</span> <span id="dMx" class="text-slate-200"></span></div>
-                <div><span class="text-slate-500">SPF Configured:</span> <span id="dSpf"></span></div>
-                <div><span class="text-slate-500">DMARC Policy:</span> <span id="dDmarc"></span></div>
-                <div><span class="text-slate-500">Redirect Chain:</span> <div id="dRedirects" class="text-cyan-300 mt-1 space-y-1 break-all"></div></div>
-              </div>
-            </div>
-
-            <div id="tab-dom" class="hidden grid grid-cols-1 md:grid-cols-2 gap-6 font-mono text-xs">
-              <div class="bg-slate-950/80 p-4 rounded-xl border border-slate-800 space-y-3">
-                <h4 class="text-rose-400 font-bold uppercase border-b border-slate-800 pb-1.5">Counter-Offensive C2 & Exfiltration Unmasker</h4>
-                <div id="tgUnmaskBox" class="p-3 rounded-lg bg-slate-900 border border-slate-800"></div>
-                <div><span class="text-slate-500">Form Action Endpoint:</span> <span id="domFormAction" class="text-amber-300 break-all"></span></div>
-                <div><span class="text-slate-500">Harvested Input Fields:</span> <span id="domInputs" class="text-slate-200"></span></div>
-                <div><span class="text-slate-500">Extracted Payment Deep-Links:</span> <span id="domUpi" class="text-rose-300 font-bold"></span></div>
-                <div>
-                  <span class="text-slate-500 block mb-1">De-obfuscated JavaScript Payloads:</span>
-                  <pre id="domDeobf" class="bg-slate-900 p-2.5 rounded border border-slate-800 text-emerald-300 overflow-x-auto"></pre>
-                </div>
-              </div>
-
-              <div class="bg-slate-950/80 p-4 rounded-xl border border-slate-800 space-y-3">
-                <h4 class="text-purple-400 font-bold uppercase border-b border-slate-800 pb-1.5">DarkWeb, Maltrail, HTTP:BL & crt.sh Subdomains</h4>
-                <div><span class="text-slate-500">Tor (.onion) Gateway:</span> <span id="dwTor"></span></div>
-                <div><span class="text-slate-500">HudsonRock Stealer Logs:</span> <span id="dwStealer" class="text-amber-300"></span></div>
-                <div><span class="text-slate-500">Abuse.ch C2 Verdict:</span> <span id="dwC2" class="text-rose-300"></span></div>
-                <div><span class="text-slate-500">Maltrail & HoneyPot:</span> <span id="dwMtHp" class="text-cyan-300"></span></div>
-                <div>
-                  <span class="text-slate-500 block mb-1">Discovered Shadow Subdomains (crt.sh OSINT):</span>
-                  <div id="dwSubs" class="flex flex-wrap gap-1.5 mt-1"></div>
-                </div>
-              </div>
-            </div>
-
-            <div id="tab-soc" class="hidden space-y-4 font-mono text-xs">
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <div class="flex justify-between mb-1"><span class="text-cyan-400 font-bold">YARA Phishing Kit Rule</span><button onclick="copyText('socYara')" class="text-slate-400 hover:text-white">Copy</button></div>
-                  <pre id="socYara" class="bg-slate-950 p-3 rounded-xl border border-slate-800 text-slate-300 overflow-x-auto h-44"></pre>
-                </div>
-                <div>
-                  <div class="flex justify-between mb-1"><span class="text-cyan-400 font-bold">Sigma SIEM Detection Rule</span><button onclick="copyText('socSigma')" class="text-slate-400 hover:text-white">Copy</button></div>
-                  <pre id="socSigma" class="bg-slate-950 p-3 rounded-xl border border-slate-800 text-slate-300 overflow-x-auto h-44"></pre>
-                </div>
-              </div>
-
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <div class="flex justify-between mb-1"><span class="text-amber-400 font-bold">Suricata IDS & Linux UFW Block</span><button onclick="copyText('socSuricata')" class="text-slate-400 hover:text-white">Copy</button></div>
-                  <pre id="socSuricata" class="bg-slate-950 p-3 rounded-xl border border-slate-800 text-amber-200 overflow-x-auto h-28"></pre>
-                </div>
-                <div>
-                  <div class="flex justify-between mb-1"><span class="text-emerald-400 font-bold">Splunk SPL & Sentinel KQL Threat Hunt</span><button onclick="copyText('socSplunk')" class="text-slate-400 hover:text-white">Copy</button></div>
-                  <pre id="socSplunk" class="bg-slate-950 p-3 rounded-xl border border-slate-800 text-emerald-300 overflow-x-auto h-28"></pre>
-                </div>
-              </div>
-
-              <div>
-                <div class="flex justify-between mb-1"><span class="text-rose-400 font-bold">Automated Registrar & Abuse Takedown Notice</span><button onclick="copyText('socTakedown')" class="bg-rose-500/20 text-rose-300 px-2.5 py-0.5 rounded border border-rose-500/40">Copy Takedown Notice</button></div>
-                <pre id="socTakedown" class="bg-slate-950 p-4 rounded-xl border border-slate-800 text-slate-200 overflow-x-auto whitespace-pre-wrap"></pre>
-              </div>
-            </div>
-          </div>
+        <div class="grid lower-grid" style="margin-top:14px">
+          <div class="card panel-padding"><div class="panel-head"><div><h2>Recent investigations</h2><p>Only results from this browser session are listed.</p></div><button class="section-action" data-nav="reports">View evidence →</button></div><div class="empty-state" id="recentEmpty"><span class="empty-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 4h16v16H4zM8 8h8M8 12h8M8 16h5"/></svg></span><strong>No investigations yet</strong><p>Run a URL, email or bulk analysis to build your local investigation history.</p><button class="btn btn-small" id="recentStart">Start an investigation</button></div><div class="timeline" id="recentTimeline" hidden></div></div>
+          <div class="card panel-padding"><div class="panel-head"><div><h2>Analyst activity</h2><p>Transparent actions and connector state.</p></div><span class="pill">SESSION</span></div><div class="timeline" id="activityTimeline"><div class="timeline-item"><span class="timeline-glyph"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/></svg></span><div class="timeline-body"><div class="timeline-title">Workspace initialized</div><div class="timeline-detail">16 threat connectors, 1,000+ domain whitelist and active deception WAF ready.</div><div class="timeline-time">JUST NOW</div></div></div></div></div>
         </div>
-      </div>
-    </div>
-
-    <!-- WORKSPACE 2: RAW EMAIL HEADER & EML TRIAGE -->
-    <div id="ws-email" class="hidden space-y-6">
-      <div class="cyber-card p-6 rounded-2xl">
-        <div class="flex justify-between items-center mb-3">
-          <h3 class="text-lg font-bold text-cyan-400">Raw Email Header & Body Spoofing Analyzer</h3>
-          <button onclick="loadSampleEmail()" class="text-xs font-mono bg-slate-800 hover:bg-slate-700 text-cyan-300 px-3 py-1.5 rounded border border-slate-700">Load Sample Spoofed Enterprise Email</button>
-        </div>
-        <textarea id="emailInput" rows="7" placeholder="Paste raw email headers and body..."
-                  class="w-full bg-slate-950 border border-slate-800 rounded-xl p-4 font-mono text-xs text-slate-200 focus:outline-none focus:border-cyan-500"></textarea>
-        <button onclick="runEmailScan()" class="mt-3 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold px-6 py-2.5 rounded-xl text-sm transition">Analyze Email Headers & Extract Links</button>
-      </div>
-      <div id="emailResults" class="hidden cyber-card p-6 rounded-2xl font-mono text-xs space-y-4"></div>
-    </div>
-
-    <!-- WORKSPACE 3: BULK IOC SCANNER -->
-    <div id="ws-bulk" class="hidden space-y-6">
-      <div class="cyber-card p-6 rounded-2xl">
-        <h3 class="text-lg font-bold text-cyan-400 mb-2">Bulk IOC Triage (Up to 8 URLs / Domains in Parallel)</h3>
-        <textarea id="bulkInput" rows="5" placeholder="Enter one URL or domain per line..."
-                  class="w-full bg-slate-950 border border-slate-800 rounded-xl p-4 font-mono text-xs text-slate-200 focus:outline-none focus:border-cyan-500">sbi-kyc-update-pan.top
-verify-human-cloudflare-cdn.xyz
-github.com</textarea>
-        <button onclick="runBulkScan()" id="bulkBtn" class="mt-3 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold px-6 py-2.5 rounded-xl text-sm transition">Run Parallel Bulk Triage</button>
-      </div>
-      <div id="bulkResults" class="hidden cyber-card p-6 rounded-2xl overflow-x-auto"></div>
-    </div>
-
-    <!-- WORKSPACE 4: KALI LINUX TERMINAL CLI -->
-    <div id="ws-cli" class="hidden">
-      <div class="cyber-card p-6 rounded-2xl font-mono text-xs space-y-4">
-        <h3 class="text-lg font-bold text-cyan-400">Kali Linux Terminal Direct Mode (curl ASCII Output)</h3>
-        <p class="text-slate-300">Investigate any suspicious URL directly from your terminal without opening a browser:</p>
-        <pre class="bg-slate-950 p-4 rounded-xl border border-slate-800 text-emerald-400 overflow-x-auto">curl -s "https://phish-matrix-71kd.vercel.app/cli?url=verify-human-cloudflare-cdn.xyz"</pre>
-      </div>
+      </section>
+      <section class="view" id="view-urlscan" data-title="URL intelligence">
+        <div class="page-heading"><div><div class="eyebrow">Indicator investigation</div><h1>URL intelligence</h1><p class="page-subtitle">Correlate provider reputation, domain clues and heuristic analysis into an evidence-backed triage result.</p></div><div class="heading-actions"><button class="btn" id="urlDocsBtn">API documentation ↗</button></div></div>
+        <div class="card work-panel"><div class="work-grid"><div><div class="card-heading"><span class="heading-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg></span><div><h2>Analyze a URL or domain</h2><p>Use only indicators you are authorized to investigate.</p></div></div><form id="urlScanForm2"><label class="input-label" for="urlInput2">Indicator of compromise (IOC)</label><div class="scan-input-wrap"><input class="scan-input" id="urlInput2" placeholder="https://suspicious.example/signin" spellcheck="false" required/><button class="btn btn-primary" type="submit">Run analysis ↗</button></div></form><div id="urlResultDetail" class="raw-output"><div class="output-head"><span>Raw backend response · JSON</span><button class="tiny-link" id="copyUrlJson">Copy response</button></div><div class="output-body"><pre class="raw-json" id="urlJson"></pre></div></div></div><div class="info-box"><h3>Investigation layers</h3><p>The interface renders data returned by configured backend providers. A missing result is not interpreted as a clean verdict.</p><div class="info-list"><div class="info-line"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="m5 12 4 4L19 6"/></svg>16 reputation feeds and community IOCs</div><div class="info-line"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="m5 12 4 4L19 6"/></svg>URL, domain, RDAP and registration heuristics</div><div class="info-line"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="m5 12 4 4L19 6"/></svg>Prioritized SOC remediation playbook</div><div class="info-line"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="m5 12 4 4L19 6"/></svg>12 defensive detection rules (YARA, Sigma, SPL, WAF)</div></div></div></div></div>
+      </section>
+      <section class="view" id="view-email" data-title="Email forensics">
+        <div class="page-heading"><div><div class="eyebrow">Message investigation</div><h1>Email forensics</h1><p class="page-subtitle">Review raw message headers, Mailboxlayer reputation, authentication results, routing hops and embedded links.</p></div><div class="heading-actions"><span class="pill">RAW .EML / HEADERS</span></div></div>
+        <div class="card work-panel"><div class="work-grid"><div><div class="card-heading"><span class="heading-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m4 7 8 6 8-6"/></svg></span><div><h2>Analyze suspicious email</h2><p>Paste the raw email source, including headers and message body.</p></div></div><form id="emailForm"><label class="input-label" for="emailInput">Raw email / .eml contents</label><textarea class="textarea" id="emailInput" placeholder="From: Security Team &lt;alert@example.test&gt;\nTo: analyst@example.test\nSubject: Urgent account verification\nReceived: from mail.example.test ...\nAuthentication-Results: ...\n\nMessage body and links…" required></textarea><div class="form-row"><span class="helper-text">Avoid pasting live credentials, session tokens or private mailbox content.</span><button class="btn btn-primary" type="submit" id="emailSubmit">Analyze email ↗</button></div></form><div class="raw-output" id="emailOutput"><div class="output-head"><span>Backend analysis response</span><button class="tiny-link" id="copyEmailJson">Copy response</button></div><div class="output-body"><pre class="raw-json" id="emailJson"></pre></div></div></div><div class="info-box"><h3>What the investigation surfaces</h3><p>Combines RFC-5322 header inspection with Mailboxlayer domain intelligence.</p><div class="info-list"><div class="info-line"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="m5 12 4 4L19 6"/></svg>SPF, DKIM and DMARC alignment & spoofing detection</div><div class="info-line"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="m5 12 4 4L19 6"/></svg>Received-header routing hops and sender identity</div><div class="info-line"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="m5 12 4 4L19 6"/></svg>Extracted links and actionable gateway block advice</div><div class="info-line"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="m5 12 4 4L19 6"/></svg>Explainable result payload for SOC review</div></div></div></div></div>
+      </section>
+      <section class="view" id="view-bulk" data-title="Bulk IOC triage">
+        <div class="page-heading"><div><div class="eyebrow">Batch workflow</div><h1>Bulk IOC triage</h1><p class="page-subtitle">Submit a small set of indicators for parallel triage. One indicator per line, up to eight per run.</p></div><div class="heading-actions"><span class="pill">MAX 8 INDICATORS</span></div></div>
+        <div class="card work-panel"><div class="work-grid"><div><div class="card-heading"><span class="heading-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M9 5H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4M9 3h12v12H9z"/></svg></span><div><h2>Batch indicators</h2><p>Each line should contain one URL or domain. Blank lines are ignored.</p></div></div><form id="bulkForm"><label class="input-label" for="bulkInput">Indicators</label><textarea class="textarea" id="bulkInput" style="min-height:190px" placeholder="sbi-kyc-update-pan.top\nverify-human-cloudflare-cdn.xyz\nhttps://github.com" required></textarea><div class="form-row"><span class="helper-text" id="bulkCount">0 / 8 indicators</span><button class="btn btn-primary" type="submit">Run parallel triage ↗</button></div></form><div class="bulk-output" id="bulkOutput"><div class="output-head"><span>Batch analysis response</span><button class="tiny-link" id="copyBulkJson">Copy response</button></div><div class="output-body"><div id="bulkPretty"></div><pre class="raw-json" id="bulkJson" style="margin-top:12px"></pre></div></div></div><div class="info-box"><h3>Batch handling</h3><p>Bulk requests are submitted to the backend as a single batch. Provider timeouts or partial responses remain visible.</p><div class="info-list"><div class="info-line"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="m5 12 4 4L19 6"/></svg>Clear validation before dispatch</div><div class="info-line"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="m5 12 4 4L19 6"/></svg>Per-indicator result display when returned</div><div class="info-line"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="m5 12 4 4L19 6"/></svg>Backend error is not treated as clean</div><div class="info-line"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="m5 12 4 4L19 6"/></svg>Raw JSON retained for transparency</div></div></div></div></div>
+      </section>
+      <section class="view" id="view-detections" data-title="Detection rules">
+        <div class="page-heading"><div><div class="eyebrow">Defensive engineering</div><h1>Detection rules</h1><p class="page-subtitle">Review 12 defensive artifacts generated by an investigation (YARA, Sigma, Suricata, Cloudflare WAF, ModSecurity, Zeek, Splunk SPL, Sentinel KQL, CrowdStrike CQL).</p></div></div>
+        <div class="grid rules-grid"><div class="card rule-card"><div class="rule-heading"><strong>YARA · phishing kit detection</strong><span id="ruleYaraState">WAITING FOR SCAN</span></div><div class="rule-code" id="ruleYara">// Run an investigation to populate returned YARA content.
+// Generated artifacts are not yet available.</div><button class="btn btn-small" data-copy-id="ruleYara">Copy rule</button></div><div class="card rule-card"><div class="rule-heading"><strong>Sigma · log correlation</strong><span id="ruleSigmaState">WAITING FOR SCAN</span></div><div class="rule-code" id="ruleSigma"># Run an investigation to populate returned Sigma YAML.
+# Validate field names and logs before deployment.</div><button class="btn btn-small" data-copy-id="ruleSigma">Copy rule</button></div><div class="card rule-card"><div class="rule-heading"><strong>Suricata / WAF / UFW / Defender</strong><span id="ruleSuricataState">WAITING FOR SCAN</span></div><div class="rule-code" id="ruleSuricata"># Generated Suricata, Cloudflare WAF, ModSecurity, Zeek & UFW rules
+# will be shown here after a scan response.</div><button class="btn btn-small" data-copy-id="ruleSuricata">Copy rule</button></div><div class="card rule-card"><div class="rule-heading"><strong>Splunk SPL / Sentinel KQL / CrowdStrike CQL</strong><span id="ruleSplState">WAITING FOR SCAN</span></div><div class="rule-code" id="ruleSpl">// Splunk SPL, Microsoft Sentinel KQL, CrowdStrike CQL & Elastic KQL
+// will be displayed when returned by the API.</div><button class="btn btn-small" data-copy-id="ruleSpl">Copy artifact</button></div></div>
+        <div class="card panel-padding" style="margin-top:14px"><div class="panel-head"><div><h2>Response and takedown artifacts</h2><p>Not dispatched automatically. Review authorization, target, evidence and local policy first.</p></div><span class="pill">HUMAN REVIEW</span></div><div class="empty-state" id="takedownEmpty"><span class="empty-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 3 4 6v6c0 4.5 3.4 7.6 8 9 4.6-1.4 8-4.5 8-9V6l-8-3Z"/><path d="M12 8v4m0 3h.01"/></svg></span><strong>No response artifacts available</strong><p>After a compatible scan, returned defensive artifacts will be placed here for review and copying.</p></div><div class="raw-output" id="takedownOutput"><div class="output-head"><span>Takedown / response text</span><button class="tiny-link" id="copyTakedown">Copy</button></div><div class="output-body"><pre class="raw-json" id="takedownText"></pre></div></div></div>
+      </section>
+      <section class="view" id="view-reports" data-title="Reports & evidence">
+        <div class="page-heading"><div><div class="eyebrow">Evidence and audit trail</div><h1>Reports & evidence</h1><p class="page-subtitle">Review this session's analyses and export the raw backend response for reproducibility.</p></div><div class="heading-actions"><button class="btn" id="exportSession">Export session JSON ↓</button></div></div>
+        <div class="grid report-grid"><div class="card report-card"><span class="heading-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M6 3h9l4 4v14H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z"/><path d="M14 3v5h5M8 13h8M8 17h8"/></svg></span><h3>Session evidence</h3><p>All scans completed in this browser session, including request type, timestamp and response.</p><button class="btn btn-small" id="exportSession2">Download JSON</button></div><div class="card report-card"><span class="heading-icon" style="color:var(--purple);background:rgba(179,154,255,.1)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 19V5m0 14h16M8 15l3-4 3 2 5-7"/></svg></span><h3>Detection coverage</h3><p>Connector-level pass, fail, timeout and skipped status based on explicit backend output.</p><button class="btn btn-small" id="reportsGoRules">Review artifacts</button></div><div class="card report-card"><span class="heading-icon" style="color:var(--amber);background:rgba(246,191,100,.1)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="m12 3 9 17H3L12 3Z"/><path d="M12 9v4m0 3h.01"/></svg></span><h3>Limitations & review</h3><p>A reputation miss is not proof of safety. Validate evidence, context and false positives before action.</p><button class="btn btn-small" id="reportsGoOverview">Back to overview</button></div></div>
+        <div class="card panel-padding" style="margin-top:14px"><div class="panel-head"><div><h2>Evidence ledger</h2><p>Stored in memory for this tab only; refresh clears this session.</p></div><span class="pill" id="ledgerCount">0 ENTRIES</span></div><div class="empty-state" id="ledgerEmpty"><span class="empty-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 4h16v16H4zM8 8h8M8 12h8M8 16h5"/></svg></span><strong>No evidence recorded</strong><p>Complete an investigation to generate a local evidence ledger.</p></div><div class="raw-output show" id="ledgerOutput" style="display:none"><div class="output-head"><span>Session ledger</span><button class="tiny-link" id="copyLedger">Copy ledger JSON</button></div><div class="output-body"><pre class="raw-json" id="ledgerJson"></pre></div></div></div>
+      </section>
+      <footer style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;border-top:1px solid var(--stroke2);margin-top:25px;padding-top:17px;color:#66748e;font-size:9px"><span>PHISHMATRIX v6.0 · THREAT INTELLIGENCE WORKBENCH</span><span>Evidence first · 16 Engines · Active Deception WAF · MIT Licensed</span><span><a href="https://github.com/ayushkp930/PhishMatrix" target="_blank" rel="noreferrer" style="color:#8fa0ba">Source repository ↗</a></span></footer>
     </div>
   </main>
+</div>
+<div class="toast-region" id="toastRegion" aria-live="polite" aria-atomic="true"></div>
+<div class="modal-backdrop" id="settingsModal" role="dialog" aria-modal="true" aria-labelledby="settingsTitle"><div class="modal"><h2 id="settingsTitle">API connection</h2><p>Enter the origin where your FastAPI backend is hosted. For an integrated Vercel deployment, keep the app origin. For local development, use your local API server.</p><label class="input-label" for="apiBaseInput">Backend base URL</label><input class="scan-input" id="apiBaseInput" placeholder="https://your-app.vercel.app" spellcheck="false"/><div class="helper-text" style="margin-top:8px">Do not include an endpoint path such as <code>/api/v1/scan</code>.</div><div class="modal-actions"><button class="btn" id="cancelSettings">Cancel</button><button class="btn btn-primary" id="saveSettings">Save & test connection</button></div></div></div>
+<script>
+(() => {
+  'use strict';
+  const $ = (sel, root=document) => root.querySelector(sel);
+  const $$ = (sel, root=document) => [...root.querySelectorAll(sel)];
+  const API_CONFIG = {
+    healthPaths: ['/health', '/'],
+    scanPath: '/api/v1/scan',
+    emailPath: '/api/v1/email-scan',
+    bulkPath: '/api/v1/bulk-scan',
+    docsPath: '/docs',
+    scanBody: value => ({url: value}),
+    emailBody: value => ({email: value, raw_email: value, email_content: value}),
+    bulkBody: values => ({urls: values, indicators: values, targets: values})
+  };
+  const FEED_NAMES = [
+    'VirusTotal','Google Web Risk','AbuseIPDB','URLScan.io',
+    'AlienVault OTX','Pulsedive','GreyNoise','Shodan / InternetDB',
+    'URLhaus / ThreatFox','Maltrail GitHub','Project Honey Pot','MalShare Malware DB',
+    'Mailboxlayer Intel','IP-API Geo/Proxy','Certificate Transparency','RDAP / WHOIS'
+  ];
+  const state = {base: location.protocol === 'file:' ? 'http://127.0.0.1:8000' : location.origin, apiStatus:'checking', scans:[], currentResult:null, activity:[], demo:false};
+  let activeView = 'dashboard';
 
-  <footer class="max-w-7xl mx-auto px-4 py-8 mt-12 border-t border-slate-900 text-center text-xs text-slate-500 font-mono">
-    PhishMatrix v4.0 Hardened Enterprise SOAR Platform • MIT Licensed • Engineered by <a href="https://github.com/ayushkp930" target="_blank" rel="noopener noreferrer" class="text-cyan-400 hover:underline">Ayush Kumar Patel (github.com/ayushkp930)</a>
-  </footer>
-
-  <script>
-    let currentData = null;
-
-    // Strict XSS Sanitizer for all dynamic DOM rendering
-    function escapeHTML(str) {
-      if (str === null || str === undefined) return '';
-      return String(str)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;');
-    }
-
-    function switchWorkspace(ws) {
-      ['url', 'email', 'bulk', 'cli'].forEach(id => {
-        document.getElementById('ws-' + id).classList.add('hidden');
-        document.getElementById('ws-btn-' + id).className = 'px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider bg-slate-900 text-slate-300 border border-slate-800 hover:border-slate-700 transition';
-      });
-      document.getElementById('ws-' + ws).classList.remove('hidden');
-      document.getElementById('ws-btn-' + ws).className = 'px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider bg-cyan-500 text-slate-950 transition';
-    }
-
-    function switchTab(tab) {
-      ['graph', 'whois', 'dom', 'soc'].forEach(t => {
-        document.getElementById('tab-' + t).classList.add('hidden');
-        document.getElementById('tab-btn-' + t).className = 'px-5 py-3 text-xs font-mono font-bold uppercase text-slate-400 hover:text-slate-200';
-      });
-      document.getElementById('tab-' + tab).classList.remove('hidden');
-      document.getElementById('tab-btn-' + tab).className = 'px-5 py-3 text-xs font-mono font-bold uppercase border-b-2 border-cyan-400 text-cyan-300';
-    }
-
-    function simulateAttack(targetUrl) {
-      document.getElementById('urlInput').value = targetUrl;
-      runScan();
-    }
-
-    async function runScan() {
-      const url = document.getElementById('urlInput').value.trim();
-      if (!url) return;
-
-      const btn = document.getElementById('scanBtn');
-      const loader = document.getElementById('loaderBox');
-      const steps = document.getElementById('loaderSteps');
-      const wafBox = document.getElementById('wafAlertBox');
-
-      wafBox.classList.add('hidden');
-      btn.disabled = true;
-      btn.innerText = 'Orchestrating...';
-      document.getElementById('resultsContainer').classList.add('hidden');
-      loader.classList.remove('hidden');
-
-      const logLines = [
-        '[✓] Engaging Zero-Trust WAF, XSS Filter & SSRF DNS-Rebinding Guard...',
-        '[✓] Querying VirusTotal v3, Google Web Risk, URLScan & AbuseIPDB...',
-        '[✓] Querying Authenticated Abuse.ch URLhaus, ThreatFox & Maltrail GitHub Repo...',
-        '[✓] Querying Project Honey Pot HTTP:BL, AlienVault OTX, Pulsedive, GreyNoise & Shodan...',
-        '[✓] Scraping crt.sh Certificate Transparency Logs & HudsonRock Infostealer DB...',
-        '[✓] Running Prompt-Shielded Failover AI Threat Analyst...'
-      ];
-      steps.innerHTML = '';
-      logLines.forEach((line, idx) => {
-        setTimeout(() => {
-          const d = document.createElement('div');
-          d.className = 'text-emerald-400';
-          d.textContent = line;
-          steps.appendChild(d);
-        }, idx * 160);
-      });
-
+  function toast(message, type='info') {
+    const node = document.createElement('div'); node.className = 'toast' + (type==='error'?' error':'');
+    node.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="9"/><path d="M12 11v5m0-8h.01"/></svg><span></span>`;
+    $('span',node).textContent = message; $('#toastRegion').append(node); setTimeout(()=>node.remove(),5000);
+  }
+  function safeUrl(path) { return state.base.replace(/\/$/,'') + path; }
+  function setApiStatus(status, detail='') {
+    state.apiStatus = status;
+    const good = status === 'connected', bad = status === 'offline';
+    ['#topApiDot','#sidebarApiDot'].forEach(sel=>{$(sel).className='status-dot'+(good?' good':bad?' bad':'')});
+    $('#topApiText').textContent = good ? 'Connected' : bad ? 'Unavailable' : 'Checking';
+    $('#sidebarApiText').textContent = good ? 'ONLINE' : bad ? 'OFFLINE' : 'CHECKING';
+    $('#sidebarApiDetail').textContent = detail || (good?'API endpoint responded.':bad?'Unable to confirm API reachability.':'Checking API reachability…');
+    $('#statApi').textContent = good?'Online':bad?'Offline':'Checking…';
+    $('#statApiNote').textContent = good?'16 Engines + WAF Shield Active':bad?'Verify the base URL and server status':'Connecting to analysis engine';
+  }
+  async function checkApi() {
+    setApiStatus('checking');
+    for (const path of API_CONFIG.healthPaths) {
       try {
-        const res = await fetch('/api/v1/scan', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ url })
-        });
-        const data = await res.json();
-        if (!res.ok || data.honeypot_triggered) {
-          document.getElementById('hpTitle').textContent = data.taunt_title || 'LOL 😂 Nice Try! PhishMatrix Honeypot Triggered! 🍯🤡';
-          document.getElementById('hpDetail').textContent = data.detail || 'Malicious payload intercepted and defanged.';
-          document.getElementById('hpVector').textContent = data.attack_type || 'WAF Injection Probe';
-          document.getElementById('hpPayload').textContent = data.payload || url;
-          wafBox.classList.remove('hidden');
-          return;
-        }
-        currentData = data;
-        renderDashboard(data);
-      } catch (err) {
-        wafBox.textContent = 'Network / Scan error: ' + err;
-        wafBox.classList.remove('hidden');
-      } finally {
-        btn.disabled = false;
-        btn.innerText = 'Investigate Target';
-        loader.classList.add('hidden');
-      }
+        const res = await fetch(safeUrl(path), {method:'GET',headers:{'Accept':'application/json'}, signal:AbortSignal.timeout(4500)});
+        if (res.ok) { setApiStatus('connected', `Reachable at ${state.base}`); return true; }
+      } catch (_) {}
     }
-
-    function renderDashboard(d) {
-      document.getElementById('resultsContainer').classList.remove('hidden');
-
-      const score = Number(d.summary.risk_score) || 0;
-      const verdict = escapeHTML(d.summary.verdict);
-      document.getElementById('resScore').innerHTML = `${score}<span class="text-2xl text-slate-500">/100</span>`;
-      const vBadge = document.getElementById('resVerdict');
-      vBadge.textContent = verdict;
-      vBadge.className = 'mt-3 px-4 py-1 rounded-full text-xs font-extrabold uppercase tracking-wider ' +
-        (verdict === 'MALICIOUS' ? 'bg-rose-500/20 text-rose-400 border border-rose-500/40' :
-         verdict === 'SUSPICIOUS' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/40' :
-         'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40');
-
-      document.getElementById('resTime').textContent = `Scan completed in ${d.scan_metadata.scan_duration_ms} ms`;
-      document.getElementById('resDefangedUrl').textContent = d.target.defanged_url;
-      document.getElementById('resDomain').textContent = d.target.domain;
-      document.getElementById('resIpAsn').textContent = `${d.target.resolved_ip || 'Unresolved'} (${d.engines.abuseipdb.asn})`;
-
-      const ageDays = d.forensics.whois.domain_age_days;
-      document.getElementById('resDomainAge').textContent = ageDays !== null ? `${ageDays} Days (${d.forensics.whois.creation_date})` : d.forensics.whois.creation_date;
-      document.getElementById('resBrand').textContent = d.heuristics.impersonated_brand || d.heuristics.indian_scam_type || 'None Detected';
-
-      const mitreBox = document.getElementById('mitreContainer');
-      mitreBox.innerHTML = (d.summary.mitre_techniques || []).map(m =>
-        `<span class="bg-purple-500/20 text-purple-300 border border-purple-500/40 px-2 py-0.5 rounded text-[10px] font-mono">${escapeHTML(m.id)}: ${escapeHTML(m.name)}</span>`
-      ).join('');
-
-      const trigBox = document.getElementById('resTriggers');
-      trigBox.innerHTML = d.summary.triggers.length
-        ? d.summary.triggers.map(t => `<li class="bg-rose-500/10 border border-rose-500/20 text-rose-300 px-2.5 py-1 rounded">⚠️ ${escapeHTML(t)}</li>`).join('')
-        : `<li class="bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 px-2.5 py-1 rounded">✅ Zero malicious heuristics or blacklist triggers detected across 16 engines.</li>`;
-
-      document.getElementById('aiConfidence').textContent = `Confidence: ${d.ai_council.confidence}`;
-      document.getElementById('aiEngineName').textContent = d.ai_council.active_model_used || 'Llama-3.3-70B';
-      document.getElementById('aiSocBox').textContent = d.ai_council.executive_soc_summary;
-
-      const pr = d.ai_council.psychological_radar || {};
-      ['Urgency', 'Auth', 'Fear', 'Tech'].forEach((k, idx) => {
-        const val = Number([pr.urgency, pr.authority_spoofing, pr.fear_factor, pr.technical_deception][idx]) || 0;
-        document.getElementById('rad' + k).textContent = val + '%';
-        document.getElementById('bar' + k).style.width = val + '%';
-      });
-
-      // 16 Engine Cards
-      const vt = d.engines.virustotal;
-      document.getElementById('engVt').textContent = `${vt.malicious} / ${vt.total_engines}`;
-      document.getElementById('engVtSub').textContent = vt.source_mode;
-
-      const wr = d.engines.google_webrisk;
-      document.getElementById('engWr').textContent = wr.detected ? 'FLAGGED' : 'CLEAN';
-      document.getElementById('engWrSub').textContent = wr.threat_types.join(', ');
-
-      const ab = d.engines.abuseipdb;
-      document.getElementById('engAbuse').textContent = `${ab.confidence_score}% Risk`;
-      document.getElementById('engAbuseSub').textContent = `${ab.isp} (${ab.country})`;
-
-      const us = d.engines.urlscan;
-      document.getElementById('engUs').textContent = us.server || 'Active Scan';
-      document.getElementById('engUsLink').href = us.report_link;
-      document.getElementById('sandboxImg').src = us.screenshot;
-      document.getElementById('sandboxTitle').textContent = d.dom_forensics.page_title;
-      document.getElementById('shodanFaviconLink').href = `https://www.shodan.io/search?query=http.favicon.hash%3A${encodeURIComponent(d.dom_forensics.favicon_hash)}`;
-
-      const c2 = d.darkweb_osint.c2_intelligence;
-      document.getElementById('engUh').textContent = c2.urlhaus_listed ? `FLAGGED (${c2.urlhaus_payload_count})` : 'CLEAN';
-      document.getElementById('engUhSub').textContent = c2.authenticated_mode ? 'Abuse.ch Auth Verified' : 'Public Feed';
-
-      document.getElementById('engTf').textContent = c2.threatfox_listed ? 'C2 HIT' : 'CLEAN';
-      document.getElementById('engTfSub').textContent = (c2.malware_families || []).join(', ') || c2.classification;
-
-      const mt = d.darkweb_osint.maltrail || {};
-      document.getElementById('engMt').textContent = mt.listed ? 'TRAIL HIT' : 'CLEAN';
-      document.getElementById('engMtSub').textContent = mt.trail_type || 'stamparm/maltrail';
-
-      const hp = d.darkweb_osint.project_honeypot || {};
-      document.getElementById('engHp').textContent = hp.listed ? `Score: ${hp.threat_score}` : 'CLEAN';
-      document.getElementById('engHpSub').textContent = hp.visitor_type || 'HTTP:BL Verified';
-
-      const otx = d.engines.alienvault_otx || {};
-      document.getElementById('engOtx').textContent = `${otx.pulse_count || 0} Pulses`;
-      document.getElementById('engOtxSub').textContent = (otx.pulses || []).join(', ') || 'AlienVault OTX';
-
-      const pd = d.engines.pulsedive || {};
-      document.getElementById('engPd').textContent = pd.risk || 'LOW';
-      document.getElementById('engPdSub').textContent = 'Pulsedive Threat Feed';
-
-      const gn = d.engines.greynoise || {};
-      document.getElementById('engGn').textContent = (gn.classification || 'standard').toUpperCase();
-      document.getElementById('engGnSub').textContent = gn.name || 'GreyNoise Sensor';
-
-      const sho = d.engines.shodan || {};
-      document.getElementById('engSho').textContent = `Ports: ${(sho.open_ports || [80,443]).slice(0,4).join(', ')}`;
-      document.getElementById('engShoSub').textContent = (sho.vulns || []).length ? `CVEs: ${sho.vulns.slice(0,2).join(', ')}` : (sho.os || 'No Known CVEs');
-
-      const crt = d.darkweb_osint.crtsh || {};
-      document.getElementById('engCrt').textContent = `${crt.cert_count || 1} Certs`;
-      document.getElementById('engCrtSub').textContent = `${(d.darkweb_osint.discovered_subdomains || []).length} Subdomains Found`;
-
-      const hr = d.darkweb_osint.infostealer_exposure;
-      document.getElementById('engHr').textContent = `${hr.compromised_records} Records`;
-      document.getElementById('engHrSub').textContent = hr.stealer_families.length ? hr.stealer_families.join(', ') : 'No Stealer Logs';
-
-      document.getElementById('engWhois').textContent = d.forensics.whois.registrar;
-      document.getElementById('engWhoisSub').textContent = `Created: ${d.forensics.whois.creation_date}`;
-
-      document.getElementById('engHeur').textContent = `${d.heuristics.heuristic_score} / 95`;
-      document.getElementById('engHeurSub').textContent = `Entropy: ${d.heuristics.entropy} bits`;
-
-      // Sub-Tab 2: WHOIS, SSL, DNS
-      const w = d.forensics.whois;
-      document.getElementById('wRegistrar').textContent = w.registrar;
-      document.getElementById('wCreated').textContent = w.creation_date;
-      document.getElementById('wExpiry').textContent = w.expiry_date;
-      document.getElementById('wAge').textContent = w.domain_age_days !== null ? `${w.domain_age_days} days old` : 'Established';
-      document.getElementById('wAbuse').textContent = w.abuse_contact;
-      document.getElementById('wNs').textContent = (w.nameservers || []).join(', ') || 'Default Registry NS';
-
-      const s = d.forensics.ssl;
-      document.getElementById('sEnabled').textContent = s.ssl_enabled ? 'Yes (Active TLS)' : 'No / Unreachable';
-      document.getElementById('sIssuer').textContent = s.issuer;
-      document.getElementById('sSubject').textContent = s.subject_cn;
-      document.getElementById('sFrom').textContent = s.valid_from || 'N/A';
-      document.getElementById('sUntil').textContent = s.valid_until || 'N/A';
-      document.getElementById('sProto').textContent = s.protocol_version || 'N/A';
-
-      const dns = d.forensics.dns;
-      document.getElementById('dA').textContent = (dns.a_records || []).join(', ') || d.target.resolved_ip || 'N/A';
-      document.getElementById('dMx').textContent = (dns.mx_records || []).join(', ') || 'None';
-      document.getElementById('dSpf').textContent = dns.spf_configured ? '✅ Present' : '❌ Missing (Spoofable)';
-      document.getElementById('dDmarc').textContent = dns.dmarc_configured ? '✅ Enforced' : '❌ Missing (Spoofable)';
-      document.getElementById('dRedirects').innerHTML = (d.forensics.redirects.chain || []).map((u, i) => `<div>Hop ${i+1}: ${escapeHTML(u)}</div>`).join('');
-
-      // Sub-Tab 3: DOM & DarkWeb
-      const dom = d.dom_forensics;
-      const tgBox = document.getElementById('tgUnmaskBox');
-      if (dom.telegram_exfil) {
-        tgBox.innerHTML = `<div class="text-rose-400 font-bold">🚨 TELEGRAM BOT C2 UNMASKED (via getMe API)</div>
-          <div>Bot Username: <strong class="text-white">${escapeHTML(dom.telegram_exfil.bot_username)}</strong> (${escapeHTML(dom.telegram_exfil.bot_name)})</div>
-          <div>Token: ${escapeHTML(dom.telegram_exfil.token)} | Chat ID: ${escapeHTML(dom.telegram_exfil.chat_id || 'Extracted')}</div>`;
+    setApiStatus('offline', `No successful health response from ${state.base}.`);
+    return false;
+  }
+  function showView(name) {
+    const target = $('#view-'+name); if(!target) return;
+    activeView=name; $$('.view').forEach(v=>v.classList.toggle('active',v===target));
+    $$('.nav-item').forEach(b=>b.classList.toggle('active',b.dataset.nav===name));
+    $('#breadcrumbCurrent').textContent=target.dataset.title||name;
+    $('#sidebar').classList.remove('open'); $('#mobileScrim').classList.remove('show');
+    window.scrollTo({top:0,behavior:'smooth'});
+  }
+  function addActivity(title, detail, status='info') {
+    state.activity.unshift({title,detail,status,time:new Date().toISOString()});
+    const list=$('#activityTimeline'); list.innerHTML='';
+    state.activity.slice(0,5).forEach((a)=>{const el=document.createElement('div');el.className='timeline-item';const glyph=a.status==='error'?'!':a.status==='success'?'✓':'↗';el.innerHTML=`<span class="timeline-glyph">${glyph}</span><div class="timeline-body"><div class="timeline-title"></div><div class="timeline-detail"></div><div class="timeline-time"></div></div>`;$('.timeline-title',el).textContent=a.title;$('.timeline-detail',el).textContent=a.detail;$('.timeline-time',el).textContent=new Date(a.time).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}).toUpperCase();list.append(el);});
+  }
+  function riskOf(obj) {
+    if(!obj || typeof obj!=='object') return null;
+    const keys=['risk_score','unified_risk_score','riskScore','score','risk'];
+    for(const k of keys){const v=obj[k]; if(typeof v==='number' && v>=0 && v<=100) return v; if(typeof v==='string' && /^\d{1,3}(\.\d+)?$/.test(v) && +v<=100) return +v;}
+    for(const v of Object.values(obj)){if(v && typeof v==='object'){const got=riskOf(v);if(got!==null)return got;}}
+    return null;
+  }
+  function findValue(obj, keys) {
+    if(!obj || typeof obj!=='object') return undefined;
+    for(const k of keys){ if(obj[k]!==undefined && obj[k]!==null && obj[k]!=='') return obj[k]; }
+    for(const v of Object.values(obj)){if(v && typeof v==='object'){const got=findValue(v,keys);if(got!==undefined)return got;}}
+    return undefined;
+  }
+  function textOf(v, fallback='Unknown') { if(v===undefined||v===null||v==='') return fallback; if(typeof v==='object') return JSON.stringify(v); return String(v); }
+  function classifyVerdict(obj, score) {
+    const v=findValue(obj,['verdict','classification','threat_level','risk_level','status','label']);
+    if(v!==undefined) return textOf(v);
+    if(score!==null) return score>=75?'High risk':score>=45?'Suspicious':score>=20?'Elevated':'Low score';
+    return 'Unknown';
+  }
+  function pretty(obj) { try{return JSON.stringify(obj,null,2)}catch(_){return String(obj)} }
+  function setRisk(result, indicator, isDemo=false) {
+    const score=riskOf(result), verdict=classifyVerdict(result,score);
+    $('#riskValue').innerHTML=(score===null?'—':Math.round(score))+'<small>/100</small>';
+    $('#riskCaption').textContent=score===null?'No score returned':score>=60?'High risk':score>=25?'Investigate':'Verified Clean';
+    const deg=score===null?0:Math.max(0,Math.min(100,score))*3.6;
+    const color=score===null?'#2a394e':score>=60?'#ff7185':score>=25?'#f6bf64':'#4ed4a0';
+    $('#riskRing').style.background=`conic-gradient(${color} ${deg}deg,#2a394e ${deg}deg 360deg)`;
+    $('#riskPill').textContent=isDemo?'DEMO DATA':score===null?'NO SCORE':verdict.toUpperCase();
+    $('#riskPill').className='pill'+(isDemo?' pill-demo':score===null?'':score>=60?' pill-danger':score>=25?' pill-warn':' pill-good');
+    $('#riskNote').textContent=score===null?'Review raw result.':`Verdict: ${verdict}. Correlated across 16 intelligence sources.`;
+    $('#riskIndicator').textContent=indicator.length>31?indicator.slice(0,28)+'…':indicator;
+    $('#riskVerdict').textContent=verdict.length>25?verdict.slice(0,22)+'…':verdict;
+    $('#riskEvidence').textContent='16-Engine Evidence Ready';
+    $('#statHigh').textContent=isDemo?'DEMO':score===null?'—':score>=60?'1':'0';
+  }
+  function resetRisk(indicator='Not selected') {
+    $('#riskValue').innerHTML='—<small>/100</small>';$('#riskCaption').textContent='Awaiting evidence';$('#riskRing').style.background='conic-gradient(#2a394e 0deg,#2a394e 360deg)';$('#riskPill').textContent='NO CASE';$('#riskPill').className='pill';$('#riskNote').textContent='Run an investigation to calculate a risk score.';$('#riskIndicator').textContent=indicator.length>31?indicator.slice(0,28)+'…':indicator;$('#riskVerdict').textContent='Unknown';$('#riskEvidence').textContent='Not collected';
+  }
+  function setProgress(show, message='Preparing investigation…') { $('#scanProgress').classList.toggle('show',show); $('#progressText').textContent=message; }
+  function genericResponseText(payload) {
+    const likely=findValue(payload,['executive_summary','summary','analysis','assessment','message','detail','error']);
+    if(typeof likely==='string') return likely;
+    return 'Investigation completed. Review the remediation playbook, provider telemetry and raw JSON evidence below.';
+  }
+  function getProviderMap(payload) {
+    const maybe=findValue(payload,['providers','feeds','threat_intel','intelligence','sources','checks']);
+    if(!maybe || typeof maybe!=='object') return null;
+    return maybe;
+  }
+  function updateFeeds(payload) {
+    const map=getProviderMap(payload); if(!map) return;
+    const cards=$$('#feedGrid .feed-card');
+    cards.forEach((card,i)=>{
+      const label=FEED_NAMES[i]; if(!label) return;
+      let found=map[label];
+      if(found===undefined){
+        for(const [k,v] of Object.entries(map)){if(k.toLowerCase().includes(label.split(/[ /]/)[0].toLowerCase()) || label.toLowerCase().includes(k.toLowerCase())){found=v;break;}}
+      }
+      if(found===undefined) return;
+      const stateEl=$('.feed-state',card); const verdict=String(typeof found==='object'?(found.status??found.verdict??found.result??'returned'):found).toLowerCase();
+      stateEl.className='feed-state'+(/malicious|detected|flagged|suspicious|error|fail/.test(verdict)?' error':/ok|clean|success|complete|ready|verified/.test(verdict)?' done':'');
+      $('.feed-type',card).textContent=typeof found==='object'?textOf(found.status??found.verdict??found.result??'Result received','Result received'):String(found);
+    });
+  }
+  function renderRecommendations(payload) {
+    const recs = payload && Array.isArray(payload.recommendations) ? payload.recommendations : [];
+    const empty = $('#recEmpty'), grid = $('#recGrid'), stateBadge = $('#recState');
+    if(!recs.length) {
+      empty.style.display = 'flex'; grid.style.display = 'none';
+      stateBadge.textContent = 'AWAITING SCAN'; stateBadge.className = 'pill';
+      return;
+    }
+    empty.style.display = 'none'; grid.style.display = 'grid'; grid.innerHTML = '';
+    stateBadge.textContent = `${recs.length} ACTIONS RECOMMENDED`;
+    stateBadge.className = 'pill ' + (riskOf(payload) >= 60 ? 'pill-danger' : riskOf(payload) >= 25 ? 'pill-warn' : 'pill-good');
+    recs.forEach(r => {
+      const card = document.createElement('div');
+      card.className = 'rec-item';
+      const prioClass = /P1/.test(r.priority) ? 'pill-danger' : /P2/.test(r.priority) ? 'pill-warn' : 'pill-good';
+      card.innerHTML = `<div class="rec-head"><span class="rec-cat"></span><span class="pill ${prioClass}"></span></div><p class="rec-act"></p>`;
+      $('.rec-cat', card).textContent = r.category || 'SOC Action';
+      $('.pill', card).textContent = r.priority || 'ACTION';
+      $('.rec-act', card).textContent = r.action || '';
+      grid.append(card);
+    });
+  }
+  function renderRules(payload) {
+    const soc = (payload && payload.soc_arsenal) || payload || {};
+    if(soc.yara_rule) {
+      $('#ruleYara').textContent = soc.yara_rule;
+      $('#ruleYaraState').textContent = 'RETURNED BY API'; $('#ruleYaraState').style.color = 'var(--green)';
+    }
+    if(soc.sigma_rule) {
+      $('#ruleSigma').textContent = soc.sigma_rule;
+      $('#ruleSigmaState').textContent = 'RETURNED BY API'; $('#ruleSigmaState').style.color = 'var(--green)';
+    }
+    if(soc.suricata_rule) {
+      const combinedNet = [
+        soc.suricata_rule,
+        soc.cloudflare_waf ? `\n# Cloudflare WAF Rule:\n${soc.cloudflare_waf}` : '',
+        soc.modsecurity_rule ? `\n# ModSecurity OWASP CRS Rule:\n${soc.modsecurity_rule}` : '',
+        soc.zeek_script ? `\n# Zeek Network Script:\n${soc.zeek_script}` : '',
+        soc.ufw_command ? `\n${soc.ufw_command}` : '',
+        soc.powershell_defender ? `\n${soc.powershell_defender}` : ''
+      ].filter(Boolean).join('\n');
+      $('#ruleSuricata').textContent = combinedNet;
+      $('#ruleSuricataState').textContent = 'RETURNED BY API'; $('#ruleSuricataState').style.color = 'var(--green)';
+    }
+    if(soc.splunk_spl) {
+      const combinedSiem = [
+        `# Splunk SPL:\n${soc.splunk_spl}`,
+        soc.sentinel_kql ? `\n# Microsoft Sentinel KQL:\n${soc.sentinel_kql}` : '',
+        soc.crowdstrike_cql ? `\n# CrowdStrike Falcon LogScale (CQL):\n${soc.crowdstrike_cql}` : '',
+        soc.elastic_kql ? `\n# Elastic Kibana KQL:\n${soc.elastic_kql}` : ''
+      ].filter(Boolean).join('\n');
+      $('#ruleSpl').textContent = combinedSiem;
+      $('#ruleSplState').textContent = 'RETURNED BY API'; $('#ruleSplState').style.color = 'var(--green)';
+    }
+    const takedown=findValue(payload,['takedown_notice','abuse_notice','response_artifacts','registrar_notice']);
+    if(takedown!==undefined){$('#takedownEmpty').style.display='none';$('#takedownOutput').classList.add('show');$('#takedownText').textContent=typeof takedown==='string'?takedown:pretty(takedown);}
+  }
+  function renderForensics(payload, demo=false) {
+    const fields={registrar:['registrar','registrar_name'],age:['domain_age','age_days','domainAge'],tls:['https_enabled','tls_enabled','tls_status','protocol'],issuer:['issuer_ca','certificate_issuer','issuer'],dnsA:['a_records','dns_a','ipv4','resolved_ipv4'],dnsMx:['mx_records','dns_mx'],spf:['spf_configured','spf'],dmarc:['dmarc_policy','dmarc']};
+    let count=0;
+    for(const [key,aliases] of Object.entries(fields)){
+      const value=findValue(payload,aliases);const node=$(`[data-forensic="${key}"]`);if(value===undefined)continue;
+      node.textContent=Array.isArray(value)?value.join(', '):typeof value==='object'?pretty(value):String(value);node.classList.remove('pending');count++;
+    }
+    $('#forensicState').textContent=demo?'SYNTHETIC DEMO':count?`${count} FIELDS RETURNED`:'NO FIELDS RETURNED';$('#forensicState').className='pill'+(demo?' pill-demo':count?' pill-good':'');
+  }
+  function svgEl(name, attrs={}) { const el=document.createElementNS('http://www.w3.org/2000/svg',name);for(const [k,v] of Object.entries(attrs))el.setAttribute(k,String(v));return el; }
+  function renderGraph(payload, demo=false) {
+    const graph=findValue(payload,['graph','threat_graph','infrastructure_graph','relationships','network_graph']);const svg=$('#graphSvg');svg.innerHTML='';
+    let nodes=[],edges=[];
+    if(demo){nodes=[{id:'ioc',label:'Suspicious IOC',type:'ioc',x:310,y:133},{id:'host',label:'Hosting node',type:'host',x:155,y:65},{id:'cert',label:'Certificate',type:'host',x:465,y:65},{id:'intel',label:'Lexical signal',type:'intel',x:155,y:205},{id:'rdap',label:'Registration',type:'intel',x:465,y:205}];edges=[{source:'ioc',target:'host'},{source:'ioc',target:'cert'},{source:'ioc',target:'intel'},{source:'ioc',target:'rdap'}];$('#graphDemoNote').textContent='SYNTHETIC EXAMPLE';$('#graphState').textContent='DEMO GRAPH';$('#graphState').className='pill pill-demo';}
+    else if(graph){
+      const arr=Array.isArray(graph)?graph:(graph.nodes||graph.vertices||graph.entities||[]);if(Array.isArray(arr))nodes=arr.map((n,i)=>({id:String(n.id??n.key??i),label:String(n.label??n.name??n.value??n.id??`Node ${i+1}`),type:String(n.type??n.kind??'host')}));
+      const ee=Array.isArray(graph)?[]:(graph.edges||graph.links||graph.relationships||[]);if(Array.isArray(ee))edges=ee.map(e=>({source:String(e.source??e.from??e.src??''),target:String(e.target??e.to??e.dst??'')}));
+      $('#graphDemoNote').textContent='LIVE API EVIDENCE';$('#graphState').textContent=nodes.length?'GRAPH DATA RETURNED':'GRAPH FORMAT UNKNOWN';$('#graphState').className='pill'+(nodes.length?' pill-good':'');
+    } else {$('#graphEmpty').style.display='flex';$('#graphSvg').style.display='none';$('#graphDemoNote').textContent='';$('#graphState').textContent='NO GRAPH DATA';$('#graphState').className='pill';return;}
+    if(!nodes.length){$('#graphEmpty').style.display='flex';svg.style.display='none';return;}
+    const W=620,H=270,cx=W/2,cy=H/2;nodes=nodes.slice(0,14).map((n,i)=>({...n,x:n.x??(nodes.length===1?cx:cx+Math.cos((i/nodes.length)*Math.PI*2-Math.PI/2)*Math.min(205,65+nodes.length*12)),y:n.y??(nodes.length===1?cy:cy+Math.sin((i/nodes.length)*Math.PI*2-Math.PI/2)*Math.min(78,32+nodes.length*5))}));
+    const byId=new Map(nodes.map(n=>[n.id,n]));if(!edges.length&&nodes.length>1)edges=nodes.slice(1).map(n=>({source:nodes[0].id,target:n.id}));
+    edges.forEach(e=>{const a=byId.get(e.source),b=byId.get(e.target);if(!a||!b)return;svg.append(svgEl('line',{x1:a.x,y1:a.y,x2:b.x,y2:b.y,stroke:'#43546d','stroke-width':1.25,'stroke-dasharray':demo?'0':'3 4',opacity:.8}));});
+    nodes.forEach(n=>{const type=n.type.toLowerCase();const fill=/ioc|url|domain|indicator/.test(type)?'#59d5e8':/intel|feed|signal|threat/.test(type)?'#f6bf64':'#b39aff';const g=svgEl('g');g.append(svgEl('circle',{cx:n.x,cy:n.y,r:22,fill:fill,opacity:.09}));g.append(svgEl('circle',{cx:n.x,cy:n.y,r:15,fill:'#111b2c',stroke:fill,'stroke-width':1.5}));const t=svgEl('text',{x:n.x,y:n.y+3,'text-anchor':'middle','font-size':8,'font-family':'ui-monospace,monospace',fill:fill});t.textContent=String(n.label).slice(0,3).toUpperCase();g.append(t);const label=svgEl('text',{x:n.x,y:n.y+32,'text-anchor':'middle','font-size':10,'font-family':'system-ui,sans-serif',fill:'#c4d2e7'});label.textContent=String(n.label).slice(0,24);g.append(label);svg.append(g);});
+    $('#graphEmpty').style.display='none';svg.style.display='block';
+  }
+  function resetForensics(){ $$('[data-forensic]').forEach(n=>{n.textContent='Awaiting evidence';n.classList.add('pending')});$('#forensicState').textContent='AWAITING SCAN';$('#forensicState').className='pill';renderGraph(null,false); }
+  function addScanRecord(type, indicator, payload, ok=true, demo=false) {
+    const item={id:crypto.randomUUID?crypto.randomUUID():String(Date.now()),type,indicator,timestamp:new Date().toISOString(),ok,demo,response:payload};
+    state.scans.unshift(item);state.currentResult=item;$('#statScans').textContent=state.scans.length;renderSession();renderLedger();return item;
+  }
+  function renderSession() {
+    const empty=$('#recentEmpty'),timeline=$('#recentTimeline');if(!state.scans.length){empty.hidden=false;timeline.hidden=true;return;}empty.hidden=true;timeline.hidden=false;timeline.innerHTML='';
+    state.scans.slice(0,6).forEach(s=>{const el=document.createElement('div');el.className='timeline-item';const glyph=s.demo?'D':s.ok?'✓':'!';el.innerHTML=`<span class="timeline-glyph">${glyph}</span><div class="timeline-body"><div class="timeline-title"></div><div class="timeline-detail"></div><div class="timeline-time"></div></div>`;$('.timeline-title',el).textContent=`${s.type} · ${s.indicator}`;$('.timeline-detail',el).textContent=s.demo?'Illustrative demo payload; not a live finding.':s.ok?'API response captured for this session.':'Intercepted by Active Deception Honeypot / WAF.';$('.timeline-time',el).textContent=new Date(s.timestamp).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}).toUpperCase();timeline.append(el);});
+  }
+  function renderLedger(){const n=state.scans.length;$('#ledgerCount').textContent=n+' ENTR'+(n===1?'Y':'IES');$('#ledgerEmpty').style.display=n?'none':'flex';$('#ledgerOutput').style.display=n?'block':'none';$('#ledgerJson').textContent=pretty(state.scans.map(({id,type,indicator,timestamp,ok,demo,response})=>({id,type,indicator,timestamp,ok,demo,response})));}
+  async function requestJson(path, body) {
+    const res=await fetch(safeUrl(path),{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify(body),signal:AbortSignal.timeout(45000)});
+    const text=await res.text(); let data;
+    try{data=text?JSON.parse(text):{}}catch(_){data={raw_response:text};}
+    if(!res.ok){
+      const err = new Error(data.detail || `HTTP ${res.status}`);
+      err.status = res.status;
+      err.payload = data;
+      throw err;
+    }
+    return data;
+  }
+  async function scanUrl(raw, from='dashboard') {
+    state.demo=false;
+    const indicator=raw.trim();
+    if(!indicator){toast('Enter a URL, domain or IP address.','error');return;}
+    const target=from==='urlscan'?'#urlScanForm2':'#urlScanForm';const btn=$('button[type="submit"]',$(target));if(btn)btn.disabled=true;
+    $('#honeypotBanner').classList.remove('show');
+    setProgress(true,'Dispatching indicator across 16 intelligence sources…');$('#scanResultBanner').classList.remove('show');$('#urlResultDetail').classList.remove('show');resetRisk(indicator);addActivity('URL investigation started',indicator);
+    try{
+      const data=await requestJson(API_CONFIG.scanPath,API_CONFIG.scanBody(indicator));
+      addScanRecord('URL scan',indicator,data,true,false);setRisk(data,indicator,false);updateFeeds(data);renderRecommendations(data);renderRules(data);renderForensics(data);renderGraph(data,false);
+      $('#scanResultBanner').classList.add('show');$('#resultBannerTitle').textContent='Investigation response received';$('#resultBannerText').textContent=genericResponseText(data);$('#rawOutputMount').innerHTML='<div class="raw-output show" style="display:block;margin-top:12px"><div class="output-head"><span>Raw JSON · evidence payload</span><button class="tiny-link" id="copyInlineJson">Copy JSON</button></div><div class="output-body"><pre class="raw-json" id="inlineJson"></pre></div></div>';$('#inlineJson').textContent=pretty(data);$('#copyInlineJson').addEventListener('click',()=>copyText(pretty(data),'Response copied'));
+      if(from==='urlscan'){$('#urlResultDetail').classList.add('show');$('#urlJson').textContent=pretty(data);}
+      addActivity('URL analysis completed',`16-engine response captured for ${indicator}`,'success');toast('Analysis completed. Review the remediation playbook and provider coverage.');
+    }catch(err){
+      const p = err.payload || {};
+      if(err.status === 418 || p.honeypot_triggered) {
+        $('#honeypotBanner').classList.add('show');
+        $('#hpBannerTitle').textContent = p.taunt_title || 'LOL 😂 Nice Try! PhishMatrix Honeypot Triggered! 🍯🤡';
+        $('#hpBannerDetail').textContent = p.detail || String(err.message);
+        $('#hpBannerMeta').textContent = `Attack Vector: ${p.attack_type || 'WAF Probe'} | Captured Input: ${p.payload || indicator}`;
+        addScanRecord('Honeypot Trap',indicator,p,false,false);
+        addActivity('Honeypot Trap Triggered', p.attack_type || 'Malicious payload blocked', 'error');
+        toast('LOL 😂 Nice try! Active Deception Honeypot triggered! 🍯🤡','error');
       } else {
-        tgBox.innerHTML = `<div class="text-emerald-400">✅ No hardcoded Telegram Bot Token or Discord Exfil Webhook found in DOM.</div>`;
+        const error={error:String(err.message||err),endpoint:safeUrl(API_CONFIG.scanPath),indicator,timestamp:new Date().toISOString()};addScanRecord('URL scan',indicator,error,false,false);$('#scanResultBanner').classList.add('show');$('#resultBannerTitle').textContent='Investigation could not be completed';$('#resultBannerText').textContent=String(err.message||err)+' — the absence of a result is not a clean verdict.';$('#rawOutputMount').innerHTML='';resetRisk(indicator);resetForensics();addActivity('URL analysis failed',String(err.message||err),'error');toast('Analysis request failed.','error');
       }
-      document.getElementById('domFormAction').textContent = dom.form_action;
-      document.getElementById('domInputs').textContent = (dom.requested_inputs || []).join(', ') || 'None';
-      document.getElementById('domUpi').textContent = (dom.upi_scam_ids || []).join(', ') || 'None';
-      document.getElementById('domDeobf').textContent = (dom.deobfuscated_scripts || []).join('\n') || 'No obfuscated Base64/Hex JS payloads detected.';
-
-      document.getElementById('dwTor').textContent = d.darkweb_osint.is_tor_gateway ? '🚨 Tor Gateway Detected' : 'Standard Clearnet';
-      document.getElementById('dwStealer').textContent = `${hr.compromised_records} Compromised Credential Logs`;
-      document.getElementById('dwC2').textContent = c2.classification;
-      document.getElementById('dwMtHp').textContent = `Maltrail: ${mt.trail_type || 'Clean'} | HTTP:BL: ${hp.visitor_type || 'Clean'}`;
-      document.getElementById('dwSubs').innerHTML = (d.darkweb_osint.discovered_subdomains || []).map(sub =>
-        `<span class="bg-slate-900 border border-slate-700 px-2 py-0.5 rounded text-cyan-300">${escapeHTML(sub)}</span>`
-      ).join('');
-
-      // Sub-Tab 4: SOC Rules
-      const soc = d.soc_arsenal;
-      document.getElementById('socYara').textContent = soc.yara_rule;
-      document.getElementById('socSigma').textContent = soc.sigma_rule;
-      document.getElementById('socSuricata').textContent = soc.suricata_rule + '\n\n# Cloudflare WAF Expression:\n' + (soc.cloudflare_waf || '') + '\n\n# ModSecurity OWASP CRS Rule:\n' + (soc.modsecurity_rule || '') + '\n\n# Zeek (Bro) Script:\n' + (soc.zeek_script || '') + '\n\n' + soc.ufw_command + '\n\n' + (soc.powershell_defender || '');
-      document.getElementById('socSplunk').textContent = '# Splunk SPL:\n' + soc.splunk_spl + '\n\n# Microsoft Sentinel KQL:\n' + soc.sentinel_kql + '\n\n# CrowdStrike Falcon LogScale (CQL):\n' + (soc.crowdstrike_cql || '') + '\n\n# Elastic Kibana KQL:\n' + (soc.elastic_kql || '');
-      document.getElementById('socTakedown').textContent = soc.takedown_notice;
-
-      renderThreatGraph(d);
     }
+    finally{setProgress(false);if(btn)btn.disabled=false;}
+  }
+  async function emailScan() {
+    state.demo=false;
+    const value=$('#emailInput').value.trim();if(!value){toast('Paste raw email contents first.','error');return;}const btn=$('#emailSubmit');btn.disabled=true;btn.textContent='Analyzing…';$('#emailOutput').classList.remove('show');
+    try{const data=await requestJson(API_CONFIG.emailPath,API_CONFIG.emailBody(value));addScanRecord('Email analysis','Raw email',data,true,false);$('#emailOutput').classList.add('show');$('#emailJson').textContent=pretty(data);addActivity('Email analysis completed','Email parser response captured.','success');toast('Email analysis response received.');}
+    catch(err){const data={error:String(err.message||err),endpoint:safeUrl(API_CONFIG.emailPath)};addScanRecord('Email analysis','Raw email',data,false,false);$('#emailOutput').classList.add('show');$('#emailJson').textContent=pretty(data);addActivity('Email analysis failed',String(err.message||err),'error');toast('Email analysis request failed.','error');}
+    finally{btn.disabled=false;btn.textContent='Analyze email ↗';}
+  }
+  function drawBulkItems(data, indicators) {
+    const results=Array.isArray(data)?data:findValue(data,['results','items','indicators','scans','data']);const mount=$('#bulkPretty');mount.innerHTML='';
+    if(Array.isArray(results)){results.forEach((entry,i)=>{const host=findValue(entry,['url','domain','indicator','target'])||indicators[i]||`Indicator ${i+1}`;const verdict=findValue(entry,['verdict','classification','status','risk_level','label'])||'Result returned';const score=riskOf(entry);const el=document.createElement('div');el.className='ioc-result';const l=document.createElement('div');l.innerHTML='<div class="ioc-host"></div><div class="ioc-sub"></div>';$('.ioc-host',l).textContent=String(host);$('.ioc-sub',l).textContent=score===null?'Risk score not supplied':`Risk score: ${score}/100`;const r=document.createElement('span');r.className='pill '+(/malicious|phish|high|critical|honeypot/.test(String(verdict).toLowerCase())?'pill-danger':/suspicious|medium|elevated/.test(String(verdict).toLowerCase())?'pill-warn':'pill-good');r.textContent=String(verdict).slice(0,30);el.append(l,r);mount.append(el);});}
+  }
+  async function bulkScan() {
+    state.demo=false;
+    const values=$('#bulkInput').value.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);if(!values.length){toast('Enter at least one IOC.','error');return;}if(values.length>8){toast('Bulk triage supports up to eight indicators per request.','error');return;}
+    const btn=$('#bulkForm button[type="submit"]');btn.disabled=true;$('#bulkOutput').classList.remove('show');btn.textContent='Submitting…';
+    try{const data=await requestJson(API_CONFIG.bulkPath,API_CONFIG.bulkBody(values));addScanRecord('Bulk triage',`${values.length} indicators`,data,true,false);$('#bulkOutput').classList.add('show');$('#bulkJson').textContent=pretty(data);drawBulkItems(data,values);addActivity('Bulk IOC triage completed',`${values.length} indicators submitted to API.`,'success');toast('Bulk response received.');}
+    catch(err){const data={error:String(err.message||err),indicators:values,endpoint:safeUrl(API_CONFIG.bulkPath)};addScanRecord('Bulk triage',`${values.length} indicators`,data,false,false);$('#bulkOutput').classList.add('show');$('#bulkJson').textContent=pretty(data);drawBulkItems(data,values);addActivity('Bulk triage failed',String(err.message||err),'error');toast('Bulk analysis failed.','error');}
+    finally{btn.disabled=false;btn.textContent='Run parallel triage ↗';}
+  }
+  function loadDemo() {
+    scanUrl('https://verify-human-cloudflare-cdn.xyz', 'dashboard');
+  }
+  async function copyText(text, msg='Copied to clipboard') { try{await navigator.clipboard.writeText(text);toast(msg);}catch(_){toast('Clipboard access unavailable.','error');} }
+  function exportSession(){const payload={product:'PhishMatrix v6.0',exported_at:new Date().toISOString(),api_base:state.base,api_status:state.apiStatus,scans:state.scans,activity:state.activity};const blob=new Blob([pretty(payload)],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='phishmatrix-session-evidence.json';document.body.append(a);a.click();a.remove();URL.revokeObjectURL(url);toast('Session evidence exported.');}
+  function openSettings(){$('#apiBaseInput').value=state.base;$('#settingsModal').classList.add('show');$('#apiBaseInput').focus();}
+  async function saveSettings(){const raw=$('#apiBaseInput').value.trim().replace(/\/$/,'');if(!/^https?:\/\//i.test(raw)){toast('Use a full backend origin beginning with http:// or https://.','error');return;}state.base=raw;$('#settingsModal').classList.remove('show');await checkApi();toast('API connection settings saved.');}
 
-    function renderThreatGraph(d) {
-      const container = document.getElementById('networkGraph');
-      const nodes = [
-        { id: 1, label: `Target Domain\n${d.target.domain}`, color: d.summary.verdict === 'MALICIOUS' ? '#f43f5e' : '#06b6d4', font: { color: '#fff' }, shape: 'box' },
-        { id: 2, label: `Resolved IP\n${d.target.resolved_ip || 'Cloud'}`, color: '#f59e0b', font: { color: '#000' }, shape: 'ellipse' },
-        { id: 3, label: `ASN / Host\n${d.engines.abuseipdb.isp}`, color: '#334155', font: { color: '#fff' }, shape: 'box' },
-        { id: 4, label: `Registrar\n${d.forensics.whois.registrar}`, color: '#475569', font: { color: '#fff' }, shape: 'box' },
-        { id: 5, label: `SSL Issuer\n${d.forensics.ssl.issuer}`, color: '#0ea5e9', font: { color: '#000' }, shape: 'ellipse' }
-      ];
-      const edges = [
-        { from: 1, to: 2, label: 'DNS A' },
-        { from: 2, to: 3, label: d.engines.abuseipdb.asn },
-        { from: 1, to: 4, label: 'WHOIS' },
-        { from: 1, to: 5, label: 'TLS' }
-      ];
-      if (d.dom_forensics.telegram_exfil) {
-        nodes.push({ id: 6, label: `Telegram C2\n${d.dom_forensics.telegram_exfil.bot_username}`, color: '#dc2626', font: { color: '#fff' }, shape: 'box' });
-        edges.push({ from: 1, to: 6, label: 'Exfiltrates Creds' });
-      }
-      new vis.Network(container, { nodes: new vis.DataSet(nodes), edges: new vis.DataSet(edges) }, {
-        edges: { color: '#64748b', font: { color: '#94a3b8', size: 10 }, arrows: 'to' },
-        physics: { stabilization: true }
-      });
-    }
-
-    function copyDefanged() {
-      if (!currentData) return;
-      const t = currentData.target;
-      navigator.clipboard.writeText(`URL: ${t.defanged_url}\nDomain: ${t.defanged_domain}\nIP: ${t.defanged_ip}`);
-      alert('Defanged IOCs copied to clipboard!');
-    }
-
-    function copyText(elId) {
-      const text = document.getElementById(elId).textContent;
-      navigator.clipboard.writeText(text);
-      alert('Copied to clipboard!');
-    }
-
-    function loadSampleEmail() {
-      document.getElementById('emailInput').value = `From: "Corporate Security Operations" <secops@microsoft-security-auth.com>
-Return-Path: <bounce@evil-mailer-ru.top>
-Received: from mail.evil-mailer-ru.top (185.220.101.44) by mx.google.com
-Authentication-Results: mx.google.com; spf=fail (google.com: domain of secops@microsoft-security-auth.com does not designate 185.220.101.44 as permitted sender); dkim=fail; dmarc=fail
-Subject: URGENT: Mandatory OAuth Session Re-Authentication Required
-
-Dear Employee, please re-verify your corporate AD credentials immediately at https://microsoft-oauth-login-portal.icu/login to prevent account lockout.`;
-    }
-
-    async function runEmailScan() {
-      const raw_email = document.getElementById('emailInput').value;
-      if (!raw_email.trim()) return;
-      const res = await fetch('/api/v1/email-scan', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ raw_email })
-      });
-      const d = await res.json();
-      const box = document.getElementById('emailResults');
-      box.classList.remove('hidden');
-      box.innerHTML = `
-        <div class="text-lg font-bold text-rose-400">Email Spoofing Risk Score: ${Number(d.email_risk_score) || 0}/100</div>
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <div class="bg-slate-950 p-3 rounded border border-slate-800">SPF: <strong>${escapeHTML(d.spf)}</strong></div>
-          <div class="bg-slate-950 p-3 rounded border border-slate-800">DKIM: <strong>${escapeHTML(d.dkim)}</strong></div>
-          <div class="bg-slate-950 p-3 rounded border border-slate-800">DMARC: <strong>${escapeHTML(d.dmarc)}</strong></div>
-        </div>
-        <div>From: ${escapeHTML(d.from)} | Return-Path: ${escapeHTML(d.return_path)}</div>
-        <div>Originating Hop IPs: ${(d.originating_ips || []).map(escapeHTML).join(', ')}</div>
-      `;
-    }
-
-    async function runBulkScan() {
-      const urls = document.getElementById('bulkInput').value.split('\n').map(u => u.trim()).filter(Boolean);
-      if (!urls.length) return;
-      const btn = document.getElementById('bulkBtn');
-      btn.textContent = 'Scanning Batch...';
-      const res = await fetch('/api/v1/bulk-scan', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ urls })
-      });
-      const data = await res.json();
-      btn.textContent = 'Run Parallel Bulk Triage';
-      const box = document.getElementById('bulkResults');
-      box.classList.remove('hidden');
-      box.innerHTML = `<table class="w-full text-left font-mono text-xs">
-        <thead><tr class="border-b border-slate-800 text-cyan-400"><th class="py-2">Domain</th><th>IP</th><th>Score</th><th>Verdict</th><th>Target Brand</th></tr></thead>
-        <tbody>${data.results.map(r => `<tr class="border-b border-slate-900"><td class="py-2">${escapeHTML(r.target.domain)}</td><td>${escapeHTML(r.target.resolved_ip || 'N/A')}</td><td>${Number(r.summary.risk_score)}/100</td><td class="font-bold">${escapeHTML(r.summary.verdict)}</td><td>${escapeHTML(r.heuristics.impersonated_brand || 'None')}</td></tr>`).join('')}</tbody>
-      </table>`;
-    }
-  </script>
+  $$('[data-nav]').forEach(el=>el.addEventListener('click',()=>showView(el.dataset.nav)));
+  $('#urlScanForm').addEventListener('submit',e=>{e.preventDefault();scanUrl($('#urlInput').value,'dashboard');});
+  $('#urlScanForm2').addEventListener('submit',e=>{e.preventDefault();scanUrl($('#urlInput2').value,'urlscan');});
+  $('#emailForm').addEventListener('submit',e=>{e.preventDefault();emailScan();});
+  $('#bulkForm').addEventListener('submit',e=>{e.preventDefault();bulkScan();});
+  $('#bulkInput').addEventListener('input',()=>{const n=$('#bulkInput').value.split(/\r?\n/).map(x=>x.trim()).filter(Boolean).length;$('#bulkCount').textContent=`${n} / 8 indicators`;$('#bulkCount').style.color=n>8?'var(--red)':'var(--muted)';});
+  $$('.example-chip').forEach(b=>b.addEventListener('click',()=>{$('#urlInput').value=b.dataset.example;scanUrl(b.dataset.example,'dashboard');}));
+  $('#demoBtn').addEventListener('click',loadDemo);$('#newScanBtn').addEventListener('click',()=>{showView('dashboard');$('#urlInput').focus();});$('#recentStart').addEventListener('click',()=>{showView('dashboard');$('#urlInput').focus();});$('#refreshApiBtn').addEventListener('click',checkApi);$('#graphReset').addEventListener('click',()=>{if(state.currentResult)renderGraph(state.currentResult.response,false);});
+  ['#settingsBtn','#topSettings','#openApiSettings'].forEach(s=>$(s).addEventListener('click',openSettings));$('#cancelSettings').addEventListener('click',()=>$('#settingsModal').classList.remove('show'));$('#saveSettings').addEventListener('click',saveSettings);$('#settingsModal').addEventListener('click',e=>{if(e.target===$('#settingsModal'))$('#settingsModal').classList.remove('show');});
+  $('#mobileMenu').addEventListener('click',()=>{$('#sidebar').classList.add('open');$('#mobileScrim').classList.remove('show');});$('#mobileScrim').addEventListener('click',()=>{$('#sidebar').classList.remove('open');$('#mobileScrim').classList.remove('show');});
+  $('#globalSearch').addEventListener('click',()=>{showView('dashboard');$('#urlInput').focus();});$('#urlDocsBtn').addEventListener('click',()=>window.open(safeUrl(API_CONFIG.docsPath),'_blank','noopener,noreferrer'));
+  $('#copyUrlJson').addEventListener('click',()=>copyText($('#urlJson').textContent));$('#copyEmailJson').addEventListener('click',()=>copyText($('#emailJson').textContent));$('#copyBulkJson').addEventListener('click',()=>copyText($('#bulkJson').textContent));$('#copyTakedown').addEventListener('click',()=>copyText($('#takedownText').textContent));$('#copyLedger').addEventListener('click',()=>copyText($('#ledgerJson').textContent));$('#exportSession').addEventListener('click',exportSession);$('#exportSession2').addEventListener('click',exportSession);$('#reportsGoRules').addEventListener('click',()=>showView('detections'));$('#reportsGoOverview').addEventListener('click',()=>showView('dashboard'));
+  $$('[data-copy-id]').forEach(b=>b.addEventListener('click',()=>copyText($('#'+b.dataset.copyId).textContent,'Artifact copied')));
+  document.addEventListener('keydown',e=>{if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='k'){e.preventDefault();showView('dashboard');$('#urlInput').focus();}if(e.key==='Escape'){$('#settingsModal').classList.remove('show');$('#sidebar').classList.remove('open');$('#mobileScrim').classList.remove('show');}});
+  renderSession();renderLedger();checkApi();
+})();
+</script>
 </body>
 </html>

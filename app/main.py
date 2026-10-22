@@ -6,22 +6,22 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, PlainTextResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import List
+from typing import List, Optional
 from app.orchestrator import investigate_target
 from app.email_parser import analyze_raw_email
 from app.security import HoneypotTrapTriggered
 
 app = FastAPI(
-    title="PhishMatrix v5.0 // Hardened Enterprise SOAR & Active Deception Platform",
-    description="16-Engine Threat Intel + 1,000+ Domain Whitelist + Active Deception Honeypot + 12 Blue-Team Rules",
-    version="5.0.0"
+    title="PhishMatrix v6.0 // Threat Intelligence Workbench & Autonomous SOAR",
+    description="16-Engine Threat Intel + Actionable SOC Playbook + 1,000+ Whitelist + Active Deception Honeypot",
+    version="6.0.0"
 )
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
     allow_methods=["GET", "POST"],
-    allow_headers=["Content-Type"],
+    allow_headers=["Content-Type", "Accept"],
 )
 
 RATE_LIMIT_BUCKETS = defaultdict(list)
@@ -31,14 +31,14 @@ async def security_headers_and_waf_middleware(request: Request, call_next):
     client_ip = request.client.host if request.client else "unknown"
     now = time.time()
     RATE_LIMIT_BUCKETS[client_ip] = [t for t in RATE_LIMIT_BUCKETS[client_ip] if now - t < 60]
-    if len(RATE_LIMIT_BUCKETS[client_ip]) >= 35:
+    if len(RATE_LIMIT_BUCKETS[client_ip]) >= 45:
         return JSONResponse(
             status_code=429,
             content={
                 "honeypot_triggered": True,
                 "taunt_title": "LOL 😂 Slow Down! Rate-Limit Honeypot Triggered! 🍯🐢",
                 "attack_type": "Automated DDoS / Brute-Force Scraping",
-                "payload": f"{len(RATE_LIMIT_BUCKETS[client_ip])} requests/min from {client_ip}",
+                "payload": f"{len(RATE_LIMIT_BUCKETS[client_ip])} requests/min",
                 "detail": "LOL 😂 Trying to flood the API? Take a breather, hacker! 🍯🤡"
             }
         )
@@ -49,9 +49,10 @@ async def security_headers_and_waf_middleware(request: Request, call_next):
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["X-XSS-Protection"] = "1; mode=block"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
     response.headers["Content-Security-Policy"] = (
         "default-src 'self' https:; "
-        "script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://unpkg.com; "
+        "script-src 'self' 'unsafe-inline'; "
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
         "img-src 'self' data: https:; "
         "font-src 'self' https://fonts.gstatic.com;"
@@ -70,20 +71,28 @@ class ScanRequest(BaseModel):
     url: str
 
 class EmailScanRequest(BaseModel):
-    raw_email: str
+    raw_email: Optional[str] = None
+    email: Optional[str] = None
+    email_content: Optional[str] = None
 
 class BulkScanRequest(BaseModel):
-    urls: List[str]
+    urls: Optional[List[str]] = None
+    indicators: Optional[List[str]] = None
+    targets: Optional[List[str]] = None
+
+@app.get("/health")
+async def api_health():
+    return {"status": "online", "version": "6.0.0", "engines": 16, "waf": "active"}
 
 @app.get("/")
 async def serve_ui():
     return FileResponse(os.path.join(STATIC_DIR, "index.html"))
 
-# Decoy Honeypot Endpoints for nosey friends/scanners trying /admin, /.env, /wp-admin
 @app.get("/admin")
 @app.get("/.env")
 @app.get("/wp-admin")
 @app.get("/config.json")
+@app.get("/phpmyadmin")
 async def decoy_honeypot_routes(request: Request):
     return JSONResponse(
         status_code=418,
@@ -132,24 +141,39 @@ async def api_scan_url(req: ScanRequest, request: Request):
     SCAN_CACHE[key] = {"ts": now, "data": result}
     return result
 
+@app.post("/email-scan")
 @app.post("/api/v1/email-scan")
 async def api_scan_email(req: EmailScanRequest):
-    if not req.raw_email.strip():
+    content = (req.raw_email or req.email or req.email_content or "").strip()
+    if not content:
         raise HTTPException(status_code=400, detail="Email content cannot be empty")
-    return analyze_raw_email(req.raw_email[:50000])
+    return analyze_raw_email(content[:50000])
 
+@app.post("/bulk-scan")
 @app.post("/api/v1/bulk-scan")
 async def api_bulk_scan(req: BulkScanRequest):
-    targets = [u.strip() for u in req.urls if u.strip()][:8]
+    raw_list = req.urls or req.indicators or req.targets or []
+    targets = [u.strip() for u in raw_list if u and u.strip()][:8]
     results = []
     for u in targets:
         try:
-            results.append(await investigate_target(u))
+            r = await investigate_target(u)
+            results.append({
+                "indicator": u,
+                "domain": r["target"]["domain"],
+                "resolved_ip": r["target"]["resolved_ip"],
+                "risk_score": r["risk_score"],
+                "verdict": r["verdict"],
+                "summary": r["summary"]
+            })
         except Exception as e:
             results.append({
-                "target": {"domain": u[:60], "resolved_ip": "HONEYPOT_TRAP"},
-                "summary": {"risk_score": 100, "verdict": "LOL_HONEYPOT_😂🍯"},
-                "heuristics": {"impersonated_brand": str(e)}
+                "indicator": u[:60],
+                "domain": u[:60],
+                "resolved_ip": "HONEYPOT_TRAP",
+                "risk_score": 100,
+                "verdict": "LOL_HONEYPOT_😂🍯",
+                "detail": str(e)
             })
     return {"count": len(results), "results": results}
 
@@ -175,25 +199,30 @@ async def kali_terminal_cli(url: str = Query(..., description="Target URL or dom
     vt = res["engines"]["virustotal"]
     ab = res["engines"]["abuseipdb"]
     ai = res["ai_council"]
+    recs = res.get("recommendations", [])
 
     color = "\033[91m" if s["verdict"] == "MALICIOUS" else ("\033[93m" if s["verdict"] == "SUSPICIOUS" else "\033[92m")
     reset = "\033[0m"
     cyan = "\033[96m"
 
     triggers_str = "\n".join(f"  [!] {tr}" for tr in s["triggers"][:6]) or "  [✓] Zero malicious indicators triggered (Verified Safe)."
+    recs_str = "\n".join(f"  [*] [{r['priority']}] {r['action']}" for r in recs[:3])
     return f"""
 {cyan}╔══════════════════════════════════════════════════════════════════════════╗
-║   PHISHMATRIX v5.0 // KALI LINUX TERMINAL THREAT INVESTIGATION ENGINE    ║
+║   PHISHMATRIX v6.0 // KALI LINUX TERMINAL THREAT INVESTIGATION ENGINE    ║
 ╚══════════════════════════════════════════════════════════════════════════╝{reset}
   • Target URL     : {t['defanged_url']}
   • Resolved IP    : {t['resolved_ip']} ({ab['isp']} / {ab['country']} / {ab['asn']})
-  • Domain Age     : {w['creation_date']} ({w['domain_age_days'] if w['domain_age_days'] is not None else 'Established'} days) | Registrar: {w['registrar']}
+  • Domain Age     : {w['creation_date']} ({w['domain_age_days'] if w['domain_age_days'] is not None else 'Established'} days)
   • Unified Score  : {color}{s['risk_score']}/100 [{s['verdict']}]{reset}
   • VirusTotal v3  : {vt['malicious']}/{vt['total_engines']} ({vt['source_mode']})
   • AbuseIPDB Risk : {ab['confidence_score']}% Confidence ({ab['total_reports']} reports)
 
 {cyan}[+] DETECTION TRIGGERS & FORENSIC EVIDENCE:{reset}
 {triggers_str}
+
+{cyan}[+] RECOMMENDED SOC REMEDIATION PLAYBOOK:{reset}
+{recs_str}
 
 {cyan}[+] AI SOC THREAT ANALYST ({ai.get('active_model_used', 'Autonomous')}):{reset}
   {ai['executive_soc_summary']}
