@@ -6,7 +6,7 @@
   <img src="https://img.shields.io/badge/Threat_Intel-12_Parallel_Feeds-f43f5e?style=for-the-badge&logo=virustotal&logoColor=white" alt="12 Threat Feeds" />
   <img src="https://img.shields.io/badge/AI_Failover-Llama_3.3_%7C_Gemini_2.5_%7C_Qwen_2.5-8b5cf6?style=for-the-badge&logo=google-gemini&logoColor=white" alt="AI Engines" />
 
-  <h1>🛡️ PhishMatrix v3.0 — Autonomous Threat Intelligence & Phishing SOAR Platform</h1>
+  <h1>🛡️ PhishMatrix v4.0 — Autonomous Threat Intelligence & Phishing SOAR Platform</h1>
   
   <p>
     <strong>An enterprise-grade, fault-tolerant phishing investigation and security orchestration engine combining 12 parallel OSINT/Commercial threat feeds, Zero-Day Lexical & Entropy Heuristics, Deep RDAP/Port-43 WHOIS, Counter-Offensive DOM/C2 Unmasking, and a Waterfall Failover AI SOC Analyst.</strong>
