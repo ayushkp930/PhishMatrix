@@ -1,6 +1,6 @@
 <div align="center">
 
-  <img src="https://img.shields.io/badge/PhishMatrix-v3.0_Enterprise_SOAR-06b6d4?style=for-the-badge&logo=shield&logoColor=white" alt="PhishMatrix Version" />
+  <img src="https://img.shields.io/badge/PhishMatrix-v4.0_Enterprise_SOAR-06b6d4?style=for-the-badge&logo=shield&logoColor=white" alt="PhishMatrix Version" />
   <img src="https://img.shields.io/badge/Deployment-Vercel_Serverless-000000?style=for-the-badge&logo=vercel&logoColor=white" alt="Vercel Deployment" />
   <img src="https://img.shields.io/badge/Backend-FastAPI_Async-009688?style=for-the-badge&logo=fastapi&logoColor=white" alt="FastAPI" />
   <img src="https://img.shields.io/badge/Threat_Intel-12_Parallel_Feeds-f43f5e?style=for-the-badge&logo=virustotal&logoColor=white" alt="12 Threat Feeds" />
