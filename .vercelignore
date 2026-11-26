@@ -1,0 +1,9 @@
+.env
+.env.*
+.venv/
+venv/
+.git/
+__pycache__/
+.pytest_cache/
+/maltrail-malware-domains.txt
+/intel-snapshot.json

@@ -1,150 +1,107 @@
-<div align="center">
-  <img src="https://img.shields.io/badge/PhishMatrix-v6.0_Enterprise_Workbench-59d5e8?style=for-the-badge&logo=shield&logoColor=0a0e19" alt="Version">
-  <img src="https://img.shields.io/badge/Threat_Engines-16+_Parallel_Feeds-4ed4a0?style=for-the-badge" alt="16 Feeds">
-  <img src="https://img.shields.io/badge/WAF_&_Deception-HTTP_418_Honeypot-f6bf64?style=for-the-badge" alt="Honeypot">
-  <img src="https://img.shields.io/badge/Python-FastAPI_Async-0284c7?style=for-the-badge&logo=fastapi&logoColor=white" alt="FastAPI">
-  <img src="https://img.shields.io/badge/License-MIT-b39aff?style=for-the-badge" alt="License">
+# PhishMatrix 7.2 · Investigation Console
 
-  <h1>🛡️ PhishMatrix v6.0 — Threat Intelligence Workbench & Autonomous SOAR</h1>
-  <p><b>An enterprise-grade, asynchronous phishing investigation platform orchestrating 16 Threat Intelligence Feeds, a Smart Failover AI SOC Analyst Council, a 1,000+ Domain Zero-Quota Whitelist, an Active Deception WAF Honeypot, and 12 Automated Blue-Team Detection Rules.</b></p>
+PhishMatrix is a FastAPI phishing triage tool for URLs, domains, IPs, submitted email and inert HTML samples. Each verdict includes the contributing detection rules and the status of the sources queried. The browser session can export case JSON with analyst notes and disposition. URL investigations also export a structured SIEM event.
 
-  <h3>
-    🚀 <a href="https://phish-matrix-71kd.vercel.app/" target="_blank">Launch Live Workbench (Vercel)</a>
-    &nbsp;•&nbsp;
-    📖 <a href="https://phish-matrix-71kd.vercel.app/docs" target="_blank">OpenAPI / Swagger</a>
-    &nbsp;•&nbsp;
-    🌐 <a href="https://ayushkp930.github.io" target="_blank">Author Portfolio</a>
-  </h3>
-</div>
+## Run locally
 
----
+Requires Python 3.11 or later.
 
-## ⚡ Executive Overview
-
-Traditional URL scanners rely exclusively on static blocklists, leaving organizations blind to **Zero-Day Phishing**, newly registered domains (NRDs), and client-side evasion techniques. **PhishMatrix v6.0** solves this by combining **16 parallel OSINT & commercial intelligence connectors** with deep **RDAP/Port-43 WHOIS**, **DOM payload de-obfuscation**, **counter-offensive C2 bot unmasking**, and an **AI SOC Analyst Failover Council**—delivering a deterministic risk score, interactive relationship graph, and prioritized remediation playbook in **under 4 seconds**.
-
----
-
-## 🔥 Core Architecture & Capabilities
-
-### 1. 🌐 16-Engine Parallel Threat Intelligence Matrix
-Executes non-blocking asynchronous queries (`httpx` + `asyncio`) with **Zero-Failure Silent Self-Healing**:
-* **Reputation & SafeBrowsing:** VirusTotal v3, Google Web Risk, URLScan.io Sandbox, AbuseIPDB.
-* **Global Threat Pulses & Scanners:** AlienVault OTX, Pulsedive Community Intel, GreyNoise Community API, Shodan / InternetDB (Open Ports & CVEs).
-* **Malware, Botnet C2 & DarkWeb:** Authenticated Abuse.ch (**URLhaus** & **ThreatFox**), **MalShare** Malware Hash DB, **Stamparm Maltrail** GitHub Feed, **HudsonRock Cavalier** (RedLine/Lumma Infostealer Logs).
-* **Network, DNSBL & Email Hygiene:** **Project Honey Pot (`HTTP:BL`)** DNS Blacklist, **Mailboxlayer** MX/Disposable Domain Audit, **IP-API.com** (Proxy, VPN, Tor Exit & Datacenter Hosting Detection), **crt.sh** Certificate Transparency Logs, and Dual-Engine **RDAP + Port-43 WHOIS**.
-
-### 2. ⚡ 1,000+ Trusted Domain Whitelist Engine (Zero API Quota Waste)
-* Built-in fast-path covering **1,000+ verified global and Indian enterprise/government domains** (`github.com`, `google.com`, `microsoft.com`, `onlinesbi.sbi`, `gov.in`, `nic.in`, etc.).
-* Resolves known benign baselines in **`<0.5 seconds` while consuming `0` external API credits**, preserving rate limits for genuine suspicious indicators.
-
-### 3. 🍯 Active Deception WAF, SSRF Guard & Hidden Honeypot (`HTTP 418`)
-* **Strict SSRF & DNS-Rebinding Shield:** Blocks RFC1918 private networks, loopback (`127.0.0.1`, `::1`), cloud metadata (`169.254.169.254`), and hex/octal IP encoding tricks while supporting cellular NAT64 (`64:ff9b::/96`) resolution.
-* **WAF & Prompt Injection Sandbox:** Intercepts XSS (`<script>`, event handlers), SQLi (`UNION SELECT`, `' OR 1=1`), OS Command Injection, Path Traversal (`../../`), and LLM Prompt Injection attempts, trapping attackers with a custom **`HTTP 418 I'm a Teapot` Active Deception Honeypot** response.
-* **Decoy Trap Routes:** Monitors unauthorized probes to `/admin`, `/.env`, `/wp-admin`, `/config.json`, and `/phpmyadmin`.
-
-### 4. 🧠 Smart Failover AI SOC Analyst Council
-* Uses a cost-optimized waterfall failover chain: **Llama-3.3-70B (Groq) ➔ Gemini-2.5-Flash ➔ Qwen-2.5-Coder-32B (OpenRouter) ➔ Autonomous Local Neural Engine**.
-* Sandboxes untrusted indicator telemetry inside `<untrusted_telemetry>` tags to prevent indirect prompt injection.
-
-### 5. 🕵️‍♂️ Counter-Offensive DOM Hunter & Zero-Day Heuristics
-* **Telegram C2 Bot Unmasker:** Extracts hardcoded bot tokens from phishing kits and queries Telegram's `getMe` API to expose the attacker's bot identity.
-* **Modern Attack Vector Detection:** Flags **ClickFix Clipboard PowerShell Hijacks**, Browser-in-the-Browser (BitB) OAuth popups, Web3 Crypto Drainers, Levenshtein brand typosquatting, Shannon entropy (DGA), and IDN Punycode (`xn--`) homographs.
-
-### 6. 🛡️ 12 Automated Blue-Team Defensive Artifacts & SOC Playbook
-Automatically generates copy-ready detection rules and prioritized **P1/P2/P3 Remediation Playbooks**:
-* **Endpoint & File:** YARA Phishing Kit Rule, Windows Defender PowerShell Block.
-* **SIEM & Log Hunting:** Sigma YAML Rule, Splunk SPL, Microsoft Sentinel KQL, CrowdStrike Falcon LogScale (CQL), Elastic Kibana KQL.
-* **Network & Perimeter WAF:** Suricata / Snort 3 IDS Rules, Zeek (Bro) DNS Script, Cloudflare WAF Expression, ModSecurity OWASP CRS `SecRule`, Linux UFW / `iptables` + DNS Sinkhole, and Registrar / CERT-In Abuse Takedown Notice.
-
----
-
-## 🧪 Verified Live Production Diagnostics (`8/8 PASSED`)
-
-```text
-🚀 Initiating Full System Diagnostics on: https://phish-matrix-71kd.vercel.app
-================================================================================
-[✓] PASS | 1. Health Endpoint & WAF Status               | Status: 200
-[✓] PASS | 2. Decoy Route Honeypot (/admin)              | HTTP 418 Teapot Blocked
-[✓] PASS | 3. XSS Payload WAF Interception               | Malicious script blocked!
-[✓] PASS | 4. SSRF Cloud Metadata Guard                  | Internal IP scan blocked!
-[✓] PASS | 5. Trusted 1000+ Domain Whitelist Fast-Path   | 0 API Credits used. Time: 0.47s
-[✓] PASS | 6. Deep 16-Engine & AI Triage Validation      | 17 Engines | Time: 3.73s | SOC Rules: True
-[✓] PASS | 7. Email Header & Spoofing Analyzer           | Risk Score: 100/100
-[✓] PASS | 8. Bulk Triage & Parallel Batch Processor     | Successfully processed 3 varied IOCs
-================================================================================
+```powershell
+py -3 -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+.\.venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000
 ```
 
----
+On Linux or macOS, use `python3` and `.venv/bin/python`. Open `http://127.0.0.1:8000`. **Load training sample** runs an offline HTML scenario with a credential form and deceptive link labels.
 
-## 💻 Kali Linux Terminal CLI Mode
+## Investigation modes
 
-Query the live engine directly from your terminal for instant ANSI-colored ASCII triage:
+| Mode | Evidence |
+| --- | --- |
+| URL / domain / IP | RDAP, optional registry WHOIS fallback, local indicators, brand lookalike rules, optional provider reputation |
+| Email | Sender, Reply-To, envelope domain, link-label mismatches, defanged links and attachment names |
+| HTML sample | Credential forms that post to a different domain, messaging webhook form destinations, link-label mismatches and ClickFix patterns |
+| Bulk | Up to eight indicators, with a separate outcome for each |
+
+The URL scanner does not request the submitted page. Default outbound traffic for URL investigations goes to registration authorities and configured intelligence providers. Submitted queries stay local. Web Risk defaults to origin-only lookups, with an explicit deployment setting for public paths. Query values are also removed from exported URLs. HTML and email are interpreted as text without executing scripts, opening attachments or fetching embedded resources.
+
+## Detection and scoring
+
+- A domain registered within 24 hours adds 40 points and reaches `SUSPICIOUS`. A date-only result qualifies for that band on the current UTC date. A domain aged 1–30 completed days adds 35.
+- Direct RDAP lookups use Verisign for `.com` and `.net`, NIXI for `.in`, and the IANA bootstrap registry for other supported suffixes. The Public Suffix List identifies the registered domain behind URLs such as `login.example.co.in`.
+- Current exact URL matches from a trusted local feed and corroborated clipboard execution patterns can reach `MALICIOUS`. Registration age, IP reputation and lexical features alone are capped below that threshold.
+- The rule engine counts each rule once and caps related evidence. A low score with missing coverage is `INCONCLUSIVE`. An ordinary password field, a normal email link and pasted authentication claims contribute no risk points by themselves.
+- Shared-hosting tenant creation time differs from provider-domain registration age. The results flag known shared hosting, and an exact URL match can still raise the score.
+
+Run the offline scoring benchmark with `python -m scripts.evaluate_rules`. It reports triage precision, recall and fixture-level errors. These fixtures are synthetic and do not establish production accuracy.
+
+## Kaggle dataset model
+
+The included URL model uses 15 local structural features. It shows an analyst context score and leaves the deterministic verdict and risk score independent. The model is trained on historical labels and can miss current phishing or overflag legitimate URLs.
+
+Training used 393,134 rows and threshold selection used 59,492 validation rows. Registered domains were assigned to mutually exclusive train, validation and test partitions by a stable hash. The evaluations below used the held-out partitions of three dataset samples. The two additional datasets may share providers or collection conventions and the sample mix differs from operational traffic.
+
+| Dataset | Tested URLs | Model precision | Model recall | Benign false-positive rate |
+| --- | ---: | ---: | ---: | ---: |
+| [Malicious URLs](https://www.kaggle.com/datasets/sid321axn/malicious-urls-dataset) | 1,495 | 56.0% | 30.5% | 23.4% |
+| [Phishing URL Features Dataset](https://www.kaggle.com/datasets/elifzelik/phishing-url-features-dataset) | 1,762 | 94.5% | 65.4% | 4.4% |
+| [Phishing URLs with Extracted Features](https://www.kaggle.com/datasets/victusadi/phishing-urls-dataset-with-extracted-features) | 1,140 | 98.8% | 77.5% | 5.3% |
+
+The bundled coefficients are derived from *Phishing URL Features Dataset* by Elif Özçelik, Farah ElSilk and Murat Osmanoglu. The dataset is [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/), [DOI 10.34740/KAGGLE/DSV/15339081](https://doi.org/10.34740/kaggle/dsv/15339081). The changes were URL normalization, selection of local features and domain-grouped fitting. The source datasets are downloaded separately.
 
 ```bash
-# Scan a suspicious indicator
-curl -s "https://phish-matrix-71kd.vercel.app/cli?url=verify-human-cloudflare-cdn.xyz"
-
-# Test the Active Deception Honeypot from CLI
-curl -s "https://phish-matrix-71kd.vercel.app/cli?url=http://127.0.0.1/admin"
+python -m scripts.evaluate_datasets malicious-urls-dataset.zip phishing-url-features-dataset.zip phishing-urls-dataset-with-extracted-features.zip
 ```
 
----
+To retrain, install scikit-learn in your development environment and run `python -m scripts.train_dataset_model phishing-url-features-dataset.zip`. The application uses the resulting JSON coefficients without scikit-learn at runtime.
 
-## 📂 Project Structure
+## Optional threat intelligence
 
-```text
-PhishMatrix/
-├── app/
-│   ├── main.py                  # FastAPI Workbench API, WAF Middleware, Rate Limiter & Decoy Routes
-│   ├── orchestrator.py          # 16-Engine Async Coordinator, SOC Playbook & Graph Builder
-│   ├── security.py              # SSRF Guard, NAT64 Handler, XSS/SQLi/RCE Honeypot & Defanger
-│   ├── whitelist.py             # 1,000+ Verified Global & Indian Enterprise Domain Fast-Path
-│   ├── email_parser.py          # RFC-5322 Email Header Spoofing + Mailboxlayer Analyzer
-│   └── engines/
-│       ├── threat_intel.py      # VT, WebRisk, AbuseIPDB, URLScan, OTX, Pulsedive, GreyNoise, Shodan, MalShare, Mailboxlayer, IP-API
-│       ├── darkweb.py           # Auth URLhaus, ThreatFox, Maltrail GitHub, Project Honey Pot HTTP:BL, HudsonRock, crt.sh
-│       ├── dom_hunter.py        # Telegram getMe Unmasker, ClickFix, BitB, Crypto Drainer & JS De-obfuscator
-│       ├── forensics.py         # Dual-Engine RDAP + Port-43 WHOIS, TLS Audit, DNS (SPF/DMARC) & Redirect Unroller
-│       ├── heuristics.py        # Levenshtein Typosquatting, Shannon Entropy, Punycode & Lure Heuristics
-│       ├── ai_council.py        # Failover AI Analyst (Groq Llama-3.3-70B -> Gemini-2.5 -> OpenRouter Qwen-2.5)
-│       └── soc_generator.py     # 12 Blue-Team Rules (YARA, Sigma, Suricata, SPL, KQL, CQL, WAF, Zeek, UFW)
-├── static/
-│   └── index.html               # Threat Intelligence Workbench UI (Overview, URL, Email, Bulk, Rules, Ledger)
-├── test_phishmatrix.py          # Automated Pytest Security & Orchestrator Test Suite
-├── system_diagnostics.py        # End-to-End Live Production Verification Script
-├── SECURITY.md                  # Defensive Controls & Vulnerability Disclosure Policy
-├── LICENSE                      # MIT License
-├── requirements.txt
-└── vercel.json
-```
+For local setup, copy `.env.example` to `.env`. On Vercel, use **Project → Settings → Environment Variables** in the same project. Existing values keep the names below. Select Production or Preview as appropriate, then create a fresh deployment for that environment. Keep actual keys in Vercel and outside the repo. [Vercel environment variables](https://vercel.com/docs/environment-variables)
 
----
+| Provider | Environment variables or route |
+| --- | --- |
+| VirusTotal | `VT_API_KEY` and `PHISHMATRIX_VT_SHARE=1` for public indicators |
+| Google Web Risk | `WEBRISK_API_KEY`. Origin lookup by default. `PHISHMATRIX_WEBRISK_PATH_SHARE=1` includes public paths while omitting the query. |
+| URLScan | `URLSCAN_API_KEY`. Searches existing reports by hostname or IP. |
+| AlienVault OTX, Pulsedive | `OTX_API_KEY`, `PULSEDIVE_API_KEY` |
+| AbuseIPDB, GreyNoise, Shodan | `ABUSEIPDB_API_KEY`, `GREYNOISE_API_KEY`, `SHODAN_API_KEY`. Use a public IP or enable `PHISHMATRIX_DNS_LOOKUPS=1` for hostnames. |
+| ThreatFox and URLhaus | `ABUSECH_AUTH_KEY` |
+| Project Honey Pot | `HTTPBL_API_KEY`. IPv4 only. The DNS protocol includes the key in queries sent to the configured resolver. |
+| Mailboxlayer | `MAILBOXLAYER_API_KEY`. Uses HTTPS and a conventional postmaster address to check domain MX metadata without an SMTP probe. Raw email remains local. |
+| MalShare | `MALSHARE_API_KEY`. Use **File hash** or `POST /api/v1/hash-lookup` for metadata. |
+| Groq, Gemini, OpenRouter | `GROQ_API_KEY`, `GEMINI_API_KEY`, `OPENROUTER_API_KEY` and `PHISHMATRIX_AI_SUMMARY=1`. The first available provider supplies commentary based on the verdict and built-in rule identifiers. |
+| Certificate Transparency, Hudson Rock legacy aggregate, Shodan InternetDB | `PHISHMATRIX_PUBLIC_INTEL=1`. InternetDB is the keyless alternative when Shodan has no key. The Hudson Rock legacy response is accepted only when it includes an aggregate count. |
+| IP-API | `IP_API_KEY` for HTTPS Pro access. The legacy plaintext endpoint is retired in this integration. |
+| Maltrail | `PHISHMATRIX_MALTRAIL_FILE` points to an authorized local or mounted snapshot. The legacy download URL returned 404. Review the [upstream license](https://github.com/stamparm/trails) before using it. |
 
-## ⚙️ Local Setup & Testing
+For an integration smoke test, deploy v7.2 to Preview and scan a public test indicator. **Intelligence coverage** distinguishes authentication, quota, missing-IP and availability states. `PHISHMATRIX_INCLUDE_ALLOWLIST=1` runs provider checks for established allowlisted homepage URLs. A provider can reject an otherwise valid key because of product permissions or quota. The legacy Telegram token lookup is superseded by offline evidence inspection.
+
+VirusTotal queries can result in indicator scanning or dataset inclusion. Only enable it for authorized public indicators. [VirusTotal API guidance](https://docs.virustotal.com/reference/domain-info)
+
+Build a searchable local snapshot from the official OpenPhish Community feed or an authorized analyst STIX 2.1 export. Import supports simple equality patterns for URLs, domain names and IP addresses, and skips unsupported, revoked and expired indicators.
 
 ```bash
-git clone https://github.com/ayushkp930/PhishMatrix.git
-cd PhishMatrix
-python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-
-# Run Unit & Security Test Suite
-pytest -v
-
-# Run Full Production Diagnostics
-python3 system_diagnostics.py
-
-# Start Local Workbench Server
-uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
+python -m scripts.refresh_intel --openphish
+python -m scripts.refresh_intel --stix trusted-indicators.json
+python -m scripts.refresh_intel --openphish --stix trusted-indicators.json
 ```
 
----
+Set `PHISHMATRIX_INTEL_FILE=intel-snapshot.json`. The import script replaces the snapshot only after successful validation. Community entries expire 72 hours after a successful refresh. STIX entries without an expiry expire seven days after import. Keep the generated snapshot local. [OpenPhish feed terms](https://openphish.com/phishing_feeds.html)
 
-## 👨‍💻 Author & License
+## SOC exports
 
-Engineered by **[Ayush Kumar Patel](https://github.com/ayushkp930)**  
-🌐 Portfolio: [ayushkp930.github.io](https://ayushkp930.github.io) • 🔗 LinkedIn: [Ayush Kumar Patel](https://www.linkedin.com/in/ayush-kumar-patel-5a7985368/)
+URL scans produce Sigma, Splunk SPL, Sentinel KQL, Elastic KQL, CrowdStrike LogScale, Wazuh XML, Suricata and YARA hunting templates for supported hostnames. IP scans produce Splunk and Sentinel templates. Validate fields, rule IDs and format against your own parser before enabling any detection. The workbench does not deploy rules or send takedown requests.
 
-Licensed under the **MIT License** — see [`LICENSE`](LICENSE) and [`SECURITY.md`](SECURITY.md) for details.
+## API and validation
+
+The OpenAPI schema is available at `/openapi.json`. The investigation endpoints are `/api/v1/scan`, `/api/v1/email-scan`, `/api/v1/html-scan` and `/api/v1/bulk-scan`. Use `POST /cli` with a JSON `url` field to avoid placing an indicator in the CLI endpoint's request URL.
+
+```bash
+python -m pytest -q
+python -m scripts.evaluate_rules
+```
+
+See [SECURITY.md](SECURITY.md) for the deployment controls, limits and vulnerability disclosure guidance.
+
+Built by [Ayush Kumar Patel](https://github.com/ayushkp930). MIT license.

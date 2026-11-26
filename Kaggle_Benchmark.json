@@ -1,0 +1,91 @@
+{
+  "version": "7.1",
+  "mode": "offline lexical rules and contextual model; registered-domain holdout",
+  "sample_per_class": 4000,
+  "datasets": [
+    {
+      "dataset": "malicious-urls-dataset.zip",
+      "dataset_model": {
+        "counts": {
+          "tp": 225,
+          "tn": 581,
+          "fp": 177,
+          "fn": 512
+        },
+        "precision": 0.559701,
+        "recall": 0.305292,
+        "false_positive_rate": 0.233509,
+        "registered_domain_holdout": true
+      },
+      "evaluated": 1495,
+      "precision": 0.166667,
+      "recall": 0.001357,
+      "false_positive_rate": 0.006596,
+      "counts": {
+        "tp": 1,
+        "tn": 753,
+        "fp": 5,
+        "fn": 736,
+        "unsupported": 79
+      },
+      "rows_skipped_before_sampling": 128979,
+      "sample_label_conflicts": 0
+    },
+    {
+      "dataset": "phishing-url-features-dataset.zip",
+      "dataset_model": {
+        "counts": {
+          "tp": 623,
+          "tn": 773,
+          "fp": 36,
+          "fn": 330
+        },
+        "precision": 0.945372,
+        "recall": 0.653725,
+        "false_positive_rate": 0.044499,
+        "registered_domain_holdout": true
+      },
+      "evaluated": 1762,
+      "precision": 1.0,
+      "recall": 0.004197,
+      "false_positive_rate": 0.0,
+      "counts": {
+        "tp": 4,
+        "tn": 809,
+        "fp": 0,
+        "fn": 949,
+        "unsupported": 16
+      },
+      "rows_skipped_before_sampling": 18,
+      "sample_label_conflicts": 0
+    },
+    {
+      "dataset": "phishing-urls-dataset-with-extracted-features.zip",
+      "dataset_model": {
+        "counts": {
+          "tp": 752,
+          "tn": 161,
+          "fp": 9,
+          "fn": 218
+        },
+        "precision": 0.988173,
+        "recall": 0.775258,
+        "false_positive_rate": 0.052941,
+        "registered_domain_holdout": true
+      },
+      "evaluated": 1140,
+      "precision": 1.0,
+      "recall": 0.003093,
+      "false_positive_rate": 0.0,
+      "counts": {
+        "tp": 3,
+        "tn": 170,
+        "fp": 0,
+        "fn": 967,
+        "unsupported": 2
+      },
+      "rows_skipped_before_sampling": 3,
+      "sample_label_conflicts": 0
+    }
+  ]
+}

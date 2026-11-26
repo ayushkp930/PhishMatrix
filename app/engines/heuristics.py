@@ -1,105 +1,90 @@
-import math
+"""Local lexical signals for likely brand impersonation."""
+
 import re
-from collections import Counter
+from ipaddress import ip_address
+from urllib.parse import unquote
 
-PROTECTED_BRANDS = {
-    "paypal": "PayPal Financial", "microsoft": "Microsoft / Office365", "google": "Google Workspace",
-    "apple": "Apple iCloud", "amazon": "Amazon Retail/AWS", "netflix": "Netflix", "facebook": "Meta",
-    "instagram": "Instagram", "whatsapp": "WhatsApp", "linkedin": "LinkedIn", "binance": "Binance",
-    "coinbase": "Coinbase", "metamask": "MetaMask", "onlinesbi": "State Bank of India (SBI)",
-    "sbicard": "SBI Card", "hdfcbank": "HDFC Bank", "icicibank": "ICICI Bank", "axisbank": "Axis Bank",
-    "paytm": "Paytm", "phonepe": "PhonePe", "parivahan": "Parivahan e-Challan", "indiapost": "IndiaPost"
+import idna
+
+from app.engines.forensics import registrable_domain
+from app.scoring import Finding, finding
+
+BRANDS = {
+    "microsoft": {"microsoft.com", "microsoftonline.com", "office.com", "live.com"},
+    "google": {"google.com", "google.co.in"},
+    "paypal": {"paypal.com"},
+    "apple": {"apple.com", "icloud.com"},
+    "amazon": {"amazon.com", "amazon.in", "amazon.co.uk"},
+    "netflix": {"netflix.com"},
+    "github": {"github.com"},
+    "sbi": {"sbi.co.in", "onlinesbi.sbi", "sbicard.com"},
+    "hdfc": {"hdfcbank.com", "hdfc.com"},
+    "icici": {"icicibank.com"},
+    "paytm": {"paytm.com"},
+    "phonepe": {"phonepe.com"},
+    "indiapost": {"indiapost.gov.in"},
+    "parivahan": {"parivahan.gov.in"},
 }
+ABUSED_SUFFIXES = {"top", "xyz", "buzz", "icu", "click", "link", "zip"}
+HOSTING = {"github.io", "pages.dev", "workers.dev", "vercel.app", "netlify.app", "web.app"}
+LURES = r"\b(?:login|sign[ -]?in|verify|kyc|account|unlock|update|reward|payment|e[ -]?challan)\b"
+CONFUSABLES = str.maketrans({"а": "a", "е": "e", "о": "o", "р": "p", "с": "c", "х": "x", "і": "i", "ѕ": "s", "ӏ": "l", "ο": "o", "0": "o"})
 
-OFFICIAL_DOMAINS = {
-    "paypal.com", "microsoft.com", "live.com", "office.com", "google.com", "apple.com", "icloud.com",
-    "amazon.com", "amazon.in", "netflix.com", "facebook.com", "instagram.com", "whatsapp.com",
-    "linkedin.com", "binance.com", "coinbase.com", "metamask.io", "onlinesbi.sbi", "sbi.co.in",
-    "hdfcbank.com", "icicibank.com", "axisbank.com", "paytm.com", "phonepe.com", "parivahan.gov.in",
-    "indiapost.gov.in", "github.com"
-}
 
-HIGH_RISK_TLDS = {".top", ".xyz", ".buzz", ".icu", ".tk", ".ml", ".ga", ".cf", ".gq", ".vip", ".work", ".click", ".link", ".zip", ".mov"}
+def one_edit_away(a: str, b: str) -> bool:
+    if a == b or abs(len(a) - len(b)) > 1:
+        return False
+    if len(a) == len(b):
+        differences = [i for i, (left, right) in enumerate(zip(a, b)) if left != right]
+        return len(differences) == 1 or (
+            len(differences) == 2 and differences[1] == differences[0] + 1
+            and a[differences[0]] == b[differences[1]] and a[differences[1]] == b[differences[0]]
+        )
+    short, long = sorted((a, b), key=len)
+    first = next((i for i, (left, right) in enumerate(zip(short, long)) if left != right), len(short))
+    return short[first:] == long[first + 1:]
 
-ABUSED_CLOUD_HOSTS = {
-    "pages.dev": "Cloudflare Pages", "workers.dev": "Cloudflare Workers", "web.app": "Google Firebase",
-    "vercel.app": "Vercel", "netlify.app": "Netlify", "ngrok-free.app": "Ngrok Tunnel", "github.io": "GitHub Pages"
-}
 
-INDIAN_SCAM_PATTERNS = [
-    (r"(sbi|hdfc|icici|axis|pnb).*(kyc|pan|update|verify|block|reward)", "Indian Banking KYC / Reward Scam"),
-    (r"(echallan|parivahan|mparivahan)", "Fake Parivahan Traffic e-Challan Scam"),
-    (r"(indiapost|delhivery|bluedart).*(address|track|customs|parcel)", "Fake Courier / IndiaPost Delivery Scam")
-]
-
-def calculate_shannon_entropy(text: str) -> float:
-    if not text: return 0.0
-    counts = Counter(text)
-    length = len(text)
-    return round(-sum((c / length) * math.log2(c / length) for c in counts.values()), 2)
-
-def run_heuristic_analysis(url: str, domain: str, path: str, query: str) -> dict:
-    score, flags, mitre = 0, [], []
-    full_target = f"{domain}{path}?{query}".lower()
-    parts = domain.split(".")
-    tld = f".{parts[-1]}" if len(parts) > 1 else ""
-    sld = parts[-2] if len(parts) >= 2 else domain
-    reg_domain = ".".join(parts[-2:]) if len(parts) >= 2 else domain
-    is_official = reg_domain in OFFICIAL_DOMAINS
-
-    if "xn--" in domain:
-        score += 40
-        flags.append("IDN Homograph Attack: Punycode ('xn--') domain detected")
-        mitre.append({"id": "T1583.001", "name": "Acquire Infrastructure: Domains"})
-
-    if tld in HIGH_RISK_TLDS and not is_official:
-        score += 18
-        flags.append(f"High-Risk TLD: Abused '{tld}' extension")
-
-    abused_cloud = None
-    for suffix, name in ABUSED_CLOUD_HOSTS.items():
-        if domain.endswith(suffix) and domain != suffix:
-            abused_cloud = name
-            score += 15
-            flags.append(f"Hosted on Free Cloud Subdomain: {name}")
-
-    brand = None
-    if not is_official:
-        for b_key, b_label in PROTECTED_BRANDS.items():
-            if b_key in domain or b_key in path.lower():
-                brand = b_label
-                score += 38
-                flags.append(f"Brand Impersonation: Targets '{b_label}'")
-                mitre.append({"id": "T1566.002", "name": "Spearphishing Link"})
-                break
-
-    scam_type = None
-    if not is_official:
-        for pat, label in INDIAN_SCAM_PATTERNS:
-            if re.search(pat, full_target):
-                scam_type = label
-                score += 35
-                flags.append(f"Indian Threat Signature: {label}")
-                break
-
-    lures = ["login", "verify", "secure", "account", "update", "banking", "signin", "kyc", "unlock"]
-    matched_lures = [k for k in lures if k in full_target]
-    if matched_lures and not is_official:
-        score += min(len(matched_lures) * 8, 25)
-        flags.append(f"Deceptive Lure Keywords: {', '.join(matched_lures[:3])}")
-
-    if "@" in url:
-        score += 35
-        flags.append("URL Credential Obfuscation: '@' symbol redirection trick")
-
-    entropy = calculate_shannon_entropy(sld)
-    if entropy > 3.9 and len(sld) > 10 and not is_official:
-        score += 15
-        flags.append(f"High Domain Entropy ({entropy} bits): Randomized DGA URL")
-
-    return {
-        "heuristic_score": min(score, 95), "entropy": entropy, "tld": tld,
-        "is_suspicious_tld": tld in HIGH_RISK_TLDS, "is_punycode": "xn--" in domain,
-        "impersonated_brand": brand, "indian_scam_type": scam_type,
-        "abused_cloud_provider": abused_cloud, "flags": flags, "mitre_techniques": mitre
-    }
+def lexical_findings(host: str, path: str, query: str) -> list[Finding]:
+    if re.search(r"\b(?:login|signin|sign-in|verify|kyc)\b", unquote(path), re.I):
+        try:
+            ip_address(host)
+        except ValueError:
+            pass
+        else:
+            return [finding("URL_IP_LOGIN", "URL heuristic", "The sign-in route uses a numeric address in place of a domain.")]
+    root = registrable_domain(host)
+    if not root:
+        return []
+    label = root.split(".", 1)[0]
+    try:
+        unicode_label = idna.decode(label)
+    except idna.IDNAError:
+        unicode_label = label
+    comparable = unicode_label.translate(CONFUSABLES)
+    skeletons = {comparable, comparable.replace("1", "l"), comparable.replace("1", "i")}
+    lure_text = re.sub(r"[_/?.&=-]", " ", f"{host} {unquote(path)} {unquote(query)}".lower())
+    findings = []
+    if label.startswith("xn--"):
+        findings.append(finding("PUNYCODE_LABEL", "URL heuristic", "The registered label uses IDNA encoding."))
+    if any(host.endswith("." + suffix) for suffix in HOSTING):
+        findings.append(finding("HOSTED_TENANT", "URL heuristic", "Registration age is for the hosting platform, not the tenant."))
+    if root.rsplit(".", 1)[-1] in ABUSED_SUFFIXES:
+        findings.append(finding("RISKY_SUFFIX", "URL heuristic", "Suffix contributes a small context signal."))
+    subdomains = host[:-len(root)].strip(".").split(".") if host.endswith("." + root) else []
+    for brand, official in BRANDS.items():
+        if root in official:
+            continue
+        if brand in subdomains and re.search(LURES, lure_text):
+            findings.append(finding("URL_BRAND_SUBDOMAIN", "URL heuristic", f"{brand} appears before the actual registered domain, {root}."))
+            break
+        if len(brand) >= 5 and brand in skeletons and unicode_label != brand:
+            findings.append(finding("BRAND_CONFUSABLE", "URL heuristic", f"The registered label uses characters that resemble {brand}."))
+            break
+        if len(brand) >= 5 and one_edit_away(label, brand):
+            findings.append(finding("BRAND_LOOKALIKE", "URL heuristic", f"The registered label resembles {brand}."))
+            break
+        if re.search(rf"\b{brand}\b", lure_text) and re.search(LURES, lure_text):
+            findings.append(finding("BRAND_LURE", "URL heuristic", f"{brand} appears alongside a credential or payment lure."))
+            break
+    return findings

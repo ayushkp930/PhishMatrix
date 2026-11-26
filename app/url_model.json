@@ -1,0 +1,41 @@
+{
+  "source": "elifzelik/phishing-url-features-dataset",
+  "features": [
+    "host_length",
+    "host_digits",
+    "host_hyphens",
+    "host_dots",
+    "path_length",
+    "path_depth",
+    "query_length",
+    "query_pairs",
+    "encoded_octets",
+    "path_digits",
+    "lure_words",
+    "ip_address",
+    "plain_http",
+    "shared_host",
+    "high_risk_suffix"
+  ],
+  "coefficients": [
+    0.10758070961334541,
+    0.5475921381794735,
+    1.1421866580801487,
+    -0.31169497779049854,
+    -0.03030981255970432,
+    -0.11304754305765422,
+    0.008500375780499425,
+    0.36998353134747275,
+    -0.3744604366006389,
+    0.32822346445038975,
+    0.5663986827382581,
+    7.208065462992711,
+    2.351044324531126,
+    7.248970301752721,
+    3.409171352410158
+  ],
+  "intercept": -1.8964547503612406,
+  "training_rows": 393134,
+  "validation_rows": 59492,
+  "threshold": 0.6814827801772267
+}
