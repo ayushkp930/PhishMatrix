@@ -1,4 +1,4 @@
-# PhishMatrix 7.2 · Investigation Console
+# PhishMatrix 7.3 · Investigation Console
 
 PhishMatrix is a FastAPI phishing triage tool for URLs, domains, IPs, submitted email and inert HTML samples. Each verdict includes the contributing detection rules and the status of the sources queried. The browser session can export case JSON with analyst notes and disposition. URL investigations also export a structured SIEM event.
 
@@ -66,7 +66,7 @@ For local setup, copy `.env.example` to `.env`. On Vercel, use **Project → Set
 | URLScan | `URLSCAN_API_KEY`. Searches existing reports by hostname or IP. |
 | AlienVault OTX, Pulsedive | `OTX_API_KEY`, `PULSEDIVE_API_KEY` |
 | AbuseIPDB, GreyNoise, Shodan | `ABUSEIPDB_API_KEY`, `GREYNOISE_API_KEY`, `SHODAN_API_KEY`. Use a public IP or enable `PHISHMATRIX_DNS_LOOKUPS=1` for hostnames. |
-| ThreatFox and URLhaus | `ABUSECH_AUTH_KEY` |
+| ThreatFox and URLhaus | `ABUSECH_AUTH_KEY`. URLhaus exact lookup also needs `PHISHMATRIX_URLHAUS_PATH_SHARE=1`. |
 | Project Honey Pot | `HTTPBL_API_KEY`. IPv4 only. The DNS protocol includes the key in queries sent to the configured resolver. |
 | Mailboxlayer | `MAILBOXLAYER_API_KEY`. Uses HTTPS and a conventional postmaster address to check domain MX metadata without an SMTP probe. Raw email remains local. |
 | MalShare | `MALSHARE_API_KEY`. Use **File hash** or `POST /api/v1/hash-lookup` for metadata. |
@@ -90,6 +90,15 @@ python -m scripts.refresh_intel --openphish --stix trusted-indicators.json
 Set `PHISHMATRIX_INTEL_FILE=intel-snapshot.json`. The import script replaces the snapshot only after successful validation. Community entries expire 72 hours after a successful refresh. STIX entries without an expiry expire seven days after import. Keep the generated snapshot local. [OpenPhish feed terms](https://openphish.com/phishing_feeds.html)
 
 ## SOC exports
+
+### Reading the verdict
+
+- **Inconclusive** means the available sources do not cover the submitted indicator well enough to report a negative result. A registration date, host-level no-match, dataset model or missing key cannot clear a URL path.
+- **No match found** means Google Web Risk returned no listing for the precise URL sent, or a completed IP reputation lookup returned no match for a bare IP. The browser shows the completed source. The API keeps the legacy `CLEAN` enum.
+- **Suspicious** includes an exact match in the bundled historical Kaggle index. The index uses the archived 2021 [Malicious URLs dataset](https://www.kaggle.com/datasets/sid321axn/malicious-urls-dataset), which Kaggle lists as CC0. It stores 211,288 hashed URL records with phishing, malware or defacement labels. Matching is URL-specific, including path and query. An absent scheme in the source record is matched across HTTP and HTTPS. Historical evidence alone scores 30 and never constitutes current malicious activity.
+- **Malicious** can follow a current positive exact-URL lookup. Web Risk needs permission for the API key. URLhaus exact lookup covers malware URLs and needs `ABUSECH_AUTH_KEY` plus `PHISHMATRIX_URLHAUS_PATH_SHARE=1`. URLhaus skips URLs with queries. Enable sharing only where submitted paths can be shared with the provider.
+
+Rebuild the bundled index from the same Kaggle archive with `python -m scripts.build_historical_index malicious-urls-dataset.zip`. The index and Kaggle evaluation scripts never open their sample URLs.
 
 URL scans produce Sigma, Splunk SPL, Sentinel KQL, Elastic KQL, CrowdStrike LogScale, Wazuh XML, Suricata and YARA hunting templates for supported hostnames. IP scans produce Splunk and Sentinel templates. Validate fields, rule IDs and format against your own parser before enabling any detection. The workbench does not deploy rules or send takedown requests.
 

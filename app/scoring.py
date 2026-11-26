@@ -2,7 +2,7 @@
 
 from dataclasses import asdict, dataclass
 
-VERSION = "7.2"
+VERSION = "7.3"
 RULES = {
     "NRD_24H": ("New domain · under 24 hours", "registration", 40, "T1583.001"),
     "NRD_30D": ("New domain · up to 30 days", "registration", 35, "T1583.001"),
@@ -15,6 +15,7 @@ RULES = {
     "URL_BRAND_SUBDOMAIN": ("Brand name in an unrelated subdomain", "lexical", 28, "T1566.002"),
     "URL_IP_LOGIN": ("Numeric address with a sign-in path", "lexical", 25, "T1566.002"),
     "TI_URL_EXACT": ("Current exact URL reputation match", "url_reputation", 75, "T1566.002"),
+    "TI_HISTORICAL_URL": ("Historical dataset URL match", "historical", 30, None),
     "TI_DOMAIN": ("Domain reputation match", "domain_reputation", 35, None),
     "TI_IP": ("IP reputation match", "infrastructure", 12, None),
     "HTML_CROSS_ORIGIN_FORM": ("Credential form posts to a different domain", "artifact", 45, "T1056"),
@@ -30,7 +31,7 @@ RULES = {
     "EMAIL_LINK_MISMATCH": ("Email link label differs from destination", "email", 28, "T1566.002"),
     "EMAIL_AUTH_CLAIM": ("Authentication-Results contains a failure claim", "email", 0, None),
 }
-CAPS = {"lexical": 30, "registration": 40, "domain_reputation": 40, "infrastructure": 15, "email": 48, "artifact": 75, "attachment": 34, "url_reputation": 75}
+CAPS = {"historical": 30, "lexical": 30, "registration": 40, "domain_reputation": 40, "infrastructure": 15, "email": 48, "artifact": 75, "attachment": 34, "url_reputation": 75}
 
 
 @dataclass(frozen=True)

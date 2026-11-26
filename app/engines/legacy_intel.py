@@ -209,7 +209,7 @@ async def additional_lookups(client, url, host, ip, scope):
         parts = urlsplit(url)
         full_public_path = os.getenv("PHISHMATRIX_WEBRISK_PATH_SHARE") == "1"
         checked = urlunsplit((parts.scheme, parts.netloc, parts.path if full_public_path else "/", "", ""))
-        lookup_scope = "url" if full_public_path and not parts.query else scope
+        lookup_scope = "url" if checked == url else scope
         jobs["webrisk"] = lookup(
             client, "https://webrisk.googleapis.com/v1/uris:search", lookup_scope, parse_webrisk,
             missing=(), headers={"x-goog-api-key": key},

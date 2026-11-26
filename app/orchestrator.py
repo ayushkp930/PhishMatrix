@@ -16,14 +16,14 @@ from app.engines.forensics import lookup_whois_rdap
 from app.engines.heuristics import lexical_findings
 from app.engines.soc_generator import generate_blue_team_arsenal, siem_event
 from app.engines.threat_intel import query_all_threat_feeds
+from app.historical_intel import SOURCE as HISTORICAL_SOURCE, historical_url_lookup
 from app.intel import lookup_snapshot
 from app.scoring import VERSION, assess, finding
 from app.security import defang_ioc, normalize_target
 from app.whitelist import is_whitelisted_domain
 
-PROVIDER_NAMES = {"virustotal": "VirusTotal", "abuseipdb": "AbuseIPDB", "threatfox": "ThreatFox", "urlhaus": "URLhaus", **LEGACY_PROVIDER_NAMES}
-REPUTATION_SOURCES = {"virustotal", "abuseipdb", "threatfox", "urlhaus", "webrisk", "pulsedive"}
-COMPLETED = {"No match", "No active match", "Match"}
+PROVIDER_NAMES = {"virustotal": "VirusTotal", "abuseipdb": "AbuseIPDB", "threatfox": "ThreatFox", "urlhaus": "URLhaus · host", "urlhaus_url": "URLhaus · URL", **LEGACY_PROVIDER_NAMES}
+IP_REPUTATION_SOURCES = {"virustotal", "abuseipdb"}
 
 
 def recommendations(verdict: str) -> list[dict]:
@@ -37,7 +37,7 @@ def recommendations(verdict: str) -> list[dict]:
             ("P3", "Hunt for the indicator", "Validate the generated SIEM rule against your schema and run it in audit mode."),
         ],
         "INCONCLUSIVE": [("P3", "Collect missing evidence", "Check provider availability and add trusted email, HTML or gateway evidence.")],
-        "CLEAN": [("INFO", "Continue monitoring", "The available checks returned a low score. Confirm the delivery context before trusting the link.")],
+        "CLEAN": [("INFO", "Continue monitoring", "The completed reputation check found no listing. Confirm the delivery context before trusting the indicator.")],
     }
     return [{"priority": priority, "category": category, "action": action} for priority, category, action in guidance[verdict]]
 
@@ -66,6 +66,28 @@ def safe_target(target: dict) -> dict:
     }
 
 
+def reputation_coverage(target: dict, feeds: dict, allowlisted: bool) -> dict:
+    # For a web URL, a negative IP/host lookup or a limited blocklist cannot cover a specific page.
+    address_only = target["domain"] == target["resolved_ip"] and target["path"] == "/" and not target["query"]
+    if address_only:
+        scope = "ip"
+        sources = [PROVIDER_NAMES[name] for name in sorted(IP_REPUTATION_SOURCES & feeds.keys())
+                   if feeds[name]["scope"] == "ip" and feeds[name]["status"] == "No match"]
+    else:
+        scope = "url"
+        web_risk = feeds.get("webrisk", {})
+        sources = [PROVIDER_NAMES["webrisk"]] if (
+            web_risk.get("scope") == "url" and web_risk.get("status") == "No match"
+        ) else []
+    if sources:
+        note = f"No match from {', '.join(sources)} for this {scope.upper()}."
+    elif allowlisted:
+        note = "Allowlisted root. External reputation checks were skipped."
+    else:
+        note = f"No completed {scope.upper()}-level negative reputation check. Host and historical results cannot establish current safety."
+    return {"scope": scope, "negative_sources": sources, "sufficient_for_no_match": bool(sources), "detail": note}
+
+
 async def investigate_target(raw_input: str) -> dict:
     started = time.monotonic()
     resolve = os.getenv("PHISHMATRIX_DNS_LOOKUPS") == "1"
@@ -76,7 +98,16 @@ async def investigate_target(raw_input: str) -> dict:
     url, domain, ip = target["url"], target["domain"], target["resolved_ip"]
     findings = lexical_findings(domain, target["path"], target["query"])
     model = dataset_context(target)
-    snapshot = await asyncio.to_thread(lookup_snapshot, url, domain, ip)
+    snapshot, historical = await asyncio.gather(
+        asyncio.to_thread(lookup_snapshot, url, domain, ip),
+        asyncio.to_thread(historical_url_lookup, url),
+    )
+    if historical["labels"]:
+        labels = ", ".join(historical["labels"])
+        findings.append(finding(
+            "TI_HISTORICAL_URL", HISTORICAL_SOURCE,
+            f"Archived URL label(s): {labels}. Current activity is unverified.",
+        ))
     for hit in snapshot["hits"]:
         identifier = {"url": "TI_URL_EXACT", "domain": "TI_DOMAIN", "ip": "TI_IP"}[hit["scope"]]
         findings.append(finding(identifier, hit["source"], f"Exact {hit['scope']} match. Valid until {hit['expires_at']}."))
@@ -109,17 +140,15 @@ async def investigate_target(raw_input: str) -> dict:
         if identifier:
             findings.append(finding(identifier, PROVIDER_NAMES[name], f"Observed {scope}-level reputation evidence."))
 
-    coverage = allowlisted or (
-        whois["registration_status"] in {"confirmed", "not_applicable"}
-        and (any(feeds[name]["status"] in COMPLETED for name in REPUTATION_SOURCES & feeds.keys()) or snapshot["status"] in COMPLETED)
-    )
-    result = assess(findings, coverage_sufficient=coverage)
+    coverage = reputation_coverage(target, feeds, allowlisted)
+    result = assess(findings, coverage_sufficient=coverage["sufficient_for_no_match"])
     verdict = result["verdict"]
     async with httpx.AsyncClient(timeout=1.8, follow_redirects=False) as client:
         analyst = await summarize(client, result)
     case_id = str(uuid4())
     providers = {PROVIDER_NAMES[name]: feed for name, feed in feeds.items()}
     providers.update({f"AI · {name}": {"status": state} for name, state in analyst["providers"].items()})
+    providers["Kaggle historical index"] = historical
     providers["Local IOC index"] = {"status": snapshot["status"], "snapshot_at": snapshot.get("snapshot_at")}
     providers["RDAP / WHOIS"] = {"status": {"confirmed": "Confirmed", "unavailable": "Unavailable", "not_applicable": "Not applicable"}[whois["registration_status"]]}
     return {
@@ -128,9 +157,10 @@ async def investigate_target(raw_input: str) -> dict:
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "kind": "url",
         "executive_summary": (
-            "Allowlisted root with established registration. External reputation checks were skipped."
-            if allowlisted else f"{verdict.title()} based on {len(result['evidence'])} evidence item(s) and current provider coverage."
+            coverage["detail"] if verdict in {"INCONCLUSIVE", "CLEAN"}
+            else f"{verdict.title()} based on {len(result['evidence'])} evidence item(s)."
         ),
+        "reputation_coverage": coverage,
         "domain_age": registration_label(whois),
         "registrar": whois["registrar"],
         "target": safe_target(target),

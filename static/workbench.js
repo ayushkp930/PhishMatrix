@@ -40,7 +40,7 @@ const templateNames = {
   wazuh_rule: 'Wazuh XML', suricata_rule: 'Suricata TLS', yara_rule: 'YARA',
 };
 const tone = { CLEAN: 'positive', SUSPICIOUS: 'warning', INCONCLUSIVE: 'warning', MALICIOUS: 'danger' };
-const labelVerdict = { CLEAN: 'Low risk', SUSPICIOUS: 'Suspicious', INCONCLUSIVE: 'Inconclusive', MALICIOUS: 'Malicious', BLOCKED: 'Blocked', UNAVAILABLE: 'Unavailable' };
+const labelVerdict = { CLEAN: 'No match found', SUSPICIOUS: 'Suspicious', INCONCLUSIVE: 'Inconclusive', MALICIOUS: 'Malicious', BLOCKED: 'Blocked', UNAVAILABLE: 'Unavailable' };
 let mode = 'url';
 let current = null;
 let running = false;
@@ -50,7 +50,7 @@ const drafts = new Map();
 const caseReviews = new Map();
 const scoreLabels = {
   artifact: 'HTML evidence', attachment: 'Attachment metadata', registration: 'Registration',
-  lexical: 'URL structure', url_reputation: 'Exact URL reputation', domain_reputation: 'Domain reputation',
+  lexical: 'URL structure', historical: 'Historical URL evidence', url_reputation: 'Exact URL reputation', domain_reputation: 'Domain reputation',
   infrastructure: 'Infrastructure', email: 'Email evidence',
 };
 const indicator = byId('indicator');
@@ -107,7 +107,7 @@ async function getJSON(endpoint, payload) {
 function riskPanel(result) {
   const isBulk = result?.kind === 'bulk';
   const verdict = result?.verdict;
-  const score = Number.isFinite(result?.risk_score) ? result.risk_score : null;
+  const score = verdict !== 'INCONCLUSIVE' && Number.isFinite(result?.risk_score) ? result.risk_score : null;
   const scoreText = score === null ? '—' : String(score);
   byId('verdict').textContent = isBulk ? 'Batch complete' : result?.kind === 'hash' ? 'Lookup complete' : labelVerdict[verdict] || 'Awaiting scan';
   byId('risk-score').textContent = scoreText;
@@ -143,21 +143,21 @@ function renderEvidence(result) {
   }
   for (const row of result?.results || []) {
     const label = node('div');
-    label.append(node('strong', row.indicator || `Indicator ${row.position}`), node('small', row.domain_age || row.detail || ''));
+    label.append(node('strong', row.indicator || `Indicator ${row.position}`), node('small', row.reputation_coverage?.detail || row.domain_age || row.detail || ''));
     const item = node('li');
     item.append(label, node('span', labelVerdict[row.verdict] || row.verdict, 'pill'));
     list.append(item);
   }
   byId('evidence-total').textContent = result?.kind === 'bulk' ? `${result.count} results` : `${rows.length} findings`;
   byId('evidence-empty').hidden = Boolean(list.children.length);
-  byId('evidence-empty').textContent = rows.length ? 'No findings match this filter.' : result ? 'The completed checks returned no findings.' : 'Findings appear when the investigation returns evidence.';
+  byId('evidence-empty').textContent = rows.length ? 'No findings match this filter.' : result?.verdict === 'INCONCLUSIVE' ? 'No positive findings. Reputation coverage is incomplete.' : result ? 'The completed checks returned no findings.' : 'Findings appear when the investigation returns evidence.';
 
   const providerList = byId('providers');
   providerList.replaceChildren();
   for (const [name, record] of Object.entries(result?.providers || {})) {
     const item = node('li');
     const state = node('span', record.status, 'pill');
-    if (['Match', 'Unavailable', 'Stale or empty', 'Auth rejected', 'Access denied', 'Rate limited'].includes(record.status)) state.dataset.state = 'warning';
+    if (['Match', 'Historical match', 'Unavailable', 'Stale or empty', 'Auth rejected', 'Access denied', 'Rate limited'].includes(record.status)) state.dataset.state = 'warning';
     else if (['Confirmed', 'No match', 'No active match'].includes(record.status)) state.dataset.state = 'positive';
     item.append(node('strong', name), state);
     providerList.append(item);
