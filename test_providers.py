@@ -47,7 +47,7 @@ def test_all_lookup_keys_use_intended_transport_and_sanitize_results(keys, monke
         "pulsedive.com": ("?key", "PULSEDIVE_API_KEY", {"risk": "high"}),
         "api.greynoise.io": ("key", "GREYNOISE_API_KEY", {"classification": "malicious"}),
         "api.shodan.io": ("?key", "SHODAN_API_KEY", {"ports": [80]}),
-        "apilayer.net": ("?access_key", "MAILBOXLAYER_API_KEY", {"mx_found": True}),
+        "api.apilayer.net": ("?access_key", "MAILBOXLAYER_API_KEY", {"mx_found": True}),
         "pro.ip-api.com": ("?key", "IP_API_KEY", {"status": "success"}),
         "crt.sh": (None, None, [{"id": 123}]),
         "cavalier.hudsonrock.com": (None, None, {"total": 2, "stealers": ["private-provider-field"]}),
@@ -60,6 +60,10 @@ def test_all_lookup_keys_use_intended_transport_and_sanitize_results(keys, monke
         assert "private-token" not in str(request.url)
         host = request.url.host
         visits.add(host)
+        if host == "api.apilayer.net":
+            assert request.url.path == "/mailboxlayer/api/check"
+            assert request.url.params["email"] == "postmaster@example.com"
+            assert request.url.params["smtp"] == "0"
         param, name, payload = expected[host]
         if param:
             actual = request.url.params[param[1:]] if param.startswith("?") else request.headers[param]
@@ -72,6 +76,7 @@ def test_all_lookup_keys_use_intended_transport_and_sanitize_results(keys, monke
     assert visits == expected.keys()
     assert result["httpbl"]["status"] == "Match"
     assert result["malshare"]["status"] == "Hash lookup available"
+    assert result["mailboxlayer"] == {"status": "Observed", "scope": "domain", "mx_found": True}
     assert result["urlscan"]["status"] == "Observed"
     assert result["crtsh"]["certificate_count"] == 1
     assert result["hudsonrock"]["aggregate_records"] == 2
