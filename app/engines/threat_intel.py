@@ -97,17 +97,43 @@ async def urlhaus(client: httpx.AsyncClient, indicator: str, scope: str) -> dict
     return provider(failure(status), scope=scope)
 
 
+async def urlhaus_url(client: httpx.AsyncClient, url: str) -> dict:
+    key = os.getenv("ABUSECH_AUTH_KEY", "").strip()
+    if not key:
+        return provider("Not configured", scope="url")
+    if os.getenv("PHISHMATRIX_URLHAUS_PATH_SHARE") != "1":
+        return provider("Sharing disabled", scope="url")
+    if "?" in url:
+        return provider("Query kept local", scope="url")
+    status = 0
+    try:
+        status, data = await request_json(
+            client, "POST", "https://urlhaus-api.abuse.ch/v1/url/",
+            headers={"Auth-Key": key}, data={"url": url},
+        )
+        if status == 200 and data.get("query_status") == "no_results":
+            return provider("No match", scope="url")
+        if status == 200 and data.get("query_status") == "ok" and data.get("url") == url:
+            activity = data.get("url_status")
+            if activity in {"online", "offline", "unknown"}:
+                return provider("Match" if activity == "online" else "No active match", scope="url")
+    except (httpx.HTTPError, TimeoutError, TypeError, ValueError):
+        pass
+    return provider(failure(status), scope="url")
+
+
 async def query_all_threat_feeds(client: httpx.AsyncClient, url: str, domain: str, ip: str | None) -> dict:
     try:
         ip_address(domain)
         scope = "ip"
     except ValueError:
         scope = "domain"
-    vt, abuse, fox, haus, extra = await asyncio.gather(
+    vt, abuse, fox, haus, exact, extra = await asyncio.gather(
         virustotal(client, domain, scope == "ip"),
         abuseipdb(client, ip),
         threatfox(client, domain, scope),
         urlhaus(client, domain, scope),
+        urlhaus_url(client, url),
         additional_lookups(client, url, domain, ip, scope),
     )
-    return {"virustotal": vt, "abuseipdb": abuse, "threatfox": fox, "urlhaus": haus, **extra}
+    return {"virustotal": vt, "abuseipdb": abuse, "threatfox": fox, "urlhaus": haus, "urlhaus_url": exact, **extra}

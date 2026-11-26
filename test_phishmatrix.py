@@ -1,6 +1,8 @@
 import asyncio
 import json
+from contextlib import nullcontext
 from datetime import datetime, timedelta, timezone
+from io import StringIO
 from itertools import count
 
 import httpx
@@ -150,6 +152,7 @@ def test_allowlist_cannot_skip_age_and_unknown_is_inconclusive(offline_client):
     client, dates = offline_client
     initial = client.post("/api/v1/scan", json={"url": "github.com"}).json()
     assert initial["scan_metadata"]["whitelist_fast_path"]
+    assert initial["verdict"] == "INCONCLUSIVE"
     dates["github.com"] = "2026-11-26T07:20:00Z"
     current = client.post("/api/v1/scan", json={"url": "github.com"}).json()
     assert current["verdict"] == "SUSPICIOUS"
@@ -198,7 +201,7 @@ def test_request_limits_csp_and_origin(offline_client):
     assert client.post("/api/v1/html-scan", content=iter(large), headers={"Content-Type": "application/json"}).status_code == 413
     invalid = client.post("/api/v1/scan", json={"url": {"sensitive": "secret-fixture"}})
     assert invalid.status_code == 422 and "secret-fixture" not in invalid.text
-    assert client.get("/api/v1/rules").json()["ruleset_version"] == "7.2"
+    assert client.get("/api/v1/rules").json()["ruleset_version"] == "7.3"
 
 
 def test_rate_limit_is_bounded():
@@ -353,3 +356,63 @@ def test_model_context_does_not_override_verdict(offline_client):
     data = client.post("/api/v1/scan", json={"url": "https://login.fresh.co.in"}).json()
     assert 0 <= data["dataset_model"]["score"] <= 1
     assert data["risk_score"] == 40
+
+
+def test_host_no_match_cannot_clear_a_page(offline_client, monkeypatch):
+    client, dates = offline_client
+    dates["example.com"] = "2010-01-01T00:00:00Z"
+
+    async def feeds(*args):
+        return {
+            "threatfox": {"scope": "domain", "status": "No match"},
+            "webrisk": {"scope": "domain", "status": "Access denied"},
+            "urlhaus_url": {"scope": "url", "status": "No match"},
+        }
+
+    monkeypatch.setattr(orchestrator, "query_all_threat_feeds", feeds)
+    result = client.post("/api/v1/scan", json={"url": "https://example.com/some/page"}).json()
+
+    assert result["risk_score"] == 0
+    assert result["verdict"] == "INCONCLUSIVE"
+    assert not result["reputation_coverage"]["sufficient_for_no_match"]
+    assert "No completed URL-level" in result["executive_summary"]
+
+
+def test_completed_url_reputation_reports_no_listing(offline_client, monkeypatch):
+    client, _ = offline_client
+
+    async def feeds(*args):
+        return {"webrisk": {"scope": "url", "status": "No match"}}
+
+    monkeypatch.setattr(orchestrator, "query_all_threat_feeds", feeds)
+    result = client.post("/api/v1/scan", json={"url": "https://example.com/provider-check"}).json()
+
+    assert result["verdict"] == "CLEAN"
+    assert result["reputation_coverage"]["negative_sources"] == ["Google Web Risk"]
+    assert result["executive_summary"] == "No match from Google Web Risk for this URL."
+
+
+def test_historical_index_matches_a_path_without_clearing_the_host(offline_client, monkeypatch):
+    from app import historical_intel
+    from scripts.build_historical_index import build_index
+
+    client, _ = offline_client
+    csv_file = StringIO(
+        "url,type\n"
+        "example.com/archived,phishing\n"
+        "example.com/conflict,malware\n"
+        "example.com/conflict,benign\n"
+    )
+    monkeypatch.setattr("scripts.build_historical_index.open_csv", lambda *args: nullcontext(csv_file))
+    index, counts = build_index(None)
+    monkeypatch.setattr(historical_intel, "read_index", lambda: index)
+    assert counts["conflicting_keys_omitted"] == 1
+
+    archived = client.post("/api/v1/scan", json={"url": "http://example.com/archived"}).json()
+    assert archived["verdict"] == "SUSPICIOUS"
+    assert archived["risk_score"] == 30
+    assert archived["providers"]["Kaggle historical index"]["labels"] == ["phishing"]
+    for suffix in ("", "/another-page", "/conflict", "/archived?token=test"):
+        response = client.post("/api/v1/scan", json={"url": "https://example.com" + suffix}).json()
+        assert response["providers"]["Kaggle historical index"]["status"] == "No historical match"
+        assert response["verdict"] == "INCONCLUSIVE"

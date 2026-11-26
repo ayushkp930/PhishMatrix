@@ -194,6 +194,7 @@ async def api_bulk_scan(req: BulkScanRequest, request: Request):
                 "verdict": result["verdict"],
                 "summary": result["summary"],
                 "domain_age": result["domain_age"],
+                "reputation_coverage": result["reputation_coverage"],
                 "registration": result["forensics"]["whois"],
             }
         except HoneypotTrapTriggered as trap:
@@ -218,6 +219,7 @@ def cli_report(result: dict) -> str:
         f"Domain Age: {result['domain_age']}",
         f"Unified Score: {result['risk_score']}/100 [{result['verdict']}]",
         f"Case: {result['case_id']}",
+        f"Coverage: {result['reputation_coverage']['detail']}",
         "",
         *[f"[{item['rule_id']}] {item['label']} — {item['detail']}" for item in result["evidence"]],
         *[f"{name}: {item['status']}" for name, item in result["providers"].items()],

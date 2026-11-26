@@ -7,7 +7,8 @@
       "config": {
         "includeFiles": [
           "static/**",
-          "app/url_model.json"
+          "app/url_model.json",
+          "app/kaggle_history.bin"
         ],
         "excludeFiles": [
           ".env",

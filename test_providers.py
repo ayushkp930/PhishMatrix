@@ -153,3 +153,21 @@ def test_ai_disable_respects_configured_keys(keys, monkeypatch):
     outcome = perform(lambda _: pytest.fail("Unexpected network request"),
                       lambda client: summarize(client, {"verdict": "CLEAN", "evidence": []}))
     assert set(outcome["providers"].values()) == {"Sharing disabled"}
+
+
+def test_urlhaus_queries_exact_public_path_and_keeps_query_local(keys, monkeypatch):
+    from app.engines.threat_intel import urlhaus_url
+
+    monkeypatch.setenv("PHISHMATRIX_URLHAUS_PATH_SHARE", "1")
+    url = "https://example.com/provider-check"
+
+    def route(request):
+        assert str(request.url) == "https://urlhaus-api.abuse.ch/v1/url/"
+        assert request.headers["Auth-Key"] == "fixture-ABUSECH_AUTH_KEY"
+        return httpx.Response(200, json={"query_status": "ok", "url": url, "url_status": "online"})
+
+    result = perform(route, lambda client: urlhaus_url(client, url))
+    assert result == {"status": "Match", "scope": "url"}
+    private = perform(lambda _: pytest.fail("Unexpected network request"),
+                      lambda client: urlhaus_url(client, url + "?token=private"))
+    assert private["status"] == "Query kept local"
