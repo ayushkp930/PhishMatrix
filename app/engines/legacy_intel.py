@@ -235,8 +235,10 @@ async def additional_lookups(client, url, host, ip, scope):
                                    params={"indicator": host, "key": key})
     if key := secret("mailboxlayer"):
         if scope == "domain":
-            jobs["mailboxlayer"] = lookup(client, "https://apilayer.net/api/check", "domain", parse_mailboxlayer,
-                                           missing=(), params={"access_key": key, "email": f"postmaster@{host}", "smtp": 0})
+            jobs["mailboxlayer"] = lookup(
+                client, "https://api.apilayer.net/mailboxlayer/api/check", "domain", parse_mailboxlayer,
+                missing=(), params={"access_key": key, "email": f"postmaster@{host}", "smtp": 0},
+            )
         else:
             results["mailboxlayer"] = provider("Domain required", scope="domain")
 
