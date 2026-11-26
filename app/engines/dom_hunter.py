@@ -1,171 +1,93 @@
+"""Inert HTML interpretation. No script execution or network access."""
+
 import re
-import base64
-import zlib
+from urllib.parse import urljoin, urlsplit
+
 from bs4 import BeautifulSoup
-import httpx
 
-async def unmask_telegram_bot(client: httpx.AsyncClient, bot_token: str) -> dict:
-    """Counter-Offensive Recon: Queries Telegram getMe API to unmask the attacker's bot identity."""
-    try:
-        resp = await client.get(f"https://api.telegram.org/bot{bot_token}/getMe", timeout=2.5)
-        if resp.status_code == 200:
-            data = resp.json().get("result", {})
-            return {
-                "token": bot_token[:18] + "...[REDACTED]",
-                "raw_token_detected": True,
-                "bot_id": data.get("id", "Active"),
-                "bot_name": data.get("first_name", "PhishKit Exfil Bot"),
-                "bot_username": f"@{data.get('username', 'hidden_c2_bot')}",
-                "status": "Verified Active C2 Bot"
-            }
-    except Exception:
-        pass
-    return {
-        "token": bot_token[:18] + "...[REDACTED]",
-        "raw_token_detected": True,
-        "bot_id": "Extracted from DOM",
-        "bot_name": "Telegram Credential Collector",
-        "bot_username": "@Automated_Phish_Exfil_Bot",
-        "status": "Signature Matched in DOM"
-    }
+from app.engines.forensics import registrable_domain
+from app.scoring import Finding, finding
+from app.security import printable
 
-def deobfuscate_javascript(html: str) -> list:
-    """Unpacks atob() Base64 and hex-encoded JavaScript payloads."""
-    decoded_payloads = []
-    # 1. Decode atob('...') calls
-    b64_matches = re.findall(r"atob\(['\"]([A-Za-z0-9+/=]{12,})['\"]\)", html)
-    for b64_str in b64_matches[:3]:
+
+def domain_key(host: str) -> str:
+    normalized = host.lower().rstrip(".")
+    return registrable_domain(normalized) or normalized
+
+
+def link_mismatches(soup: BeautifulSoup) -> int:
+    count = 0
+    for anchor in soup.find_all("a", href=True, limit=200):
+        text = anchor.get_text(" ", strip=True)
+        if len(text) > 300 or not re.match(r"^https?://\S+$", text, flags=re.I):
+            continue
         try:
-            decoded = base64.b64decode(b64_str).decode("utf-8", errors="ignore")
-            if decoded.isprintable():
-                decoded_payloads.append(f"[Base64 Unpacked]: {decoded[:160]}")
-        except Exception:
-            pass
+            shown = urlsplit(text).hostname
+            actual = urlsplit(anchor["href"]).hostname
+        except ValueError:
+            continue
+        if shown and actual and domain_key(shown) != domain_key(actual):
+            count += 1
+    return count
 
-    # 2. Decode Hex (\x68\x74\x74\x70...) sequences
-    hex_matches = re.findall(r"(?:\\x[0-9a-fA-F]{2}){8,}", html)
-    for hx in hex_matches[:2]:
-        try:
-            clean_hex = hx.replace("\\x", "")
-            decoded = bytes.fromhex(clean_hex).decode("utf-8", errors="ignore")
-            decoded_payloads.append(f"[Hex Unpacked]: {decoded[:160]}")
-        except Exception:
-            pass
 
-    return decoded_payloads
-
-async def inspect_dom_and_payloads(client: httpx.AsyncClient, html: str, domain: str) -> dict:
-    """Scans page HTML/JS for ClickFix, BitB, AiTM, Crypto Drainers, Telegram Exfil, and UPI scams."""
-    if not html:
-        return {
-            "dom_inspected": False,
-            "page_title": f"Index / Portal ({domain})",
-            "has_password_field": False,
-            " requested_inputs": [],
-            "form_action": "None",
-            "clickfix_detected": False,
-            "bitb_detected": False,
-            "crypto_drainer_detected": False,
-            "telegram_exfil": None,
-            "discord_webhooks": [],
-            "upi_scam_ids": [],
-            "deobfuscated_scripts": [],
-            "favicon_hash": abs(zlib.crc32(domain.encode())),
-            "dom_risk_points": 0,
-            "dom_alerts": []
-        }
-
+def inspect_html(html: str, context_url: str | None = None) -> tuple[dict, list[Finding]]:
     soup = BeautifulSoup(html, "html.parser")
-    title = soup.title.string.strip() if (soup.title and soup.title.string) else f"Portal ({domain})"
-    lower_html = html.lower()
-
-    dom_points = 0
-    alerts = []
-
-    # 1. Credential Harvesting Form Analysis
-    inputs = soup.find_all("input")
-    input_types = []
-    has_password = False
-    for inp in inputs:
-        itype = (inp.get("type") or "text").lower()
-        iname = (inp.get("name") or inp.get("placeholder") or itype).lower()
-        if itype == "password" or "pass" in iname or "pin" in iname or "otp" in iname or "cvv" in iname:
-            has_password = True
-        input_types.append(iname[:20])
-
-    forms = soup.find_all("form")
-    form_action = forms[0].get("action", "Self / JS Handler") if forms else "None"
-
-    if has_password:
-        dom_points += 25
-        alerts.append(f"Credential Harvesting Form Detected (Target Action: {form_action[:50]})")
-
-    # 2. ClickFix Clipboard PowerShell Hijack Detection
-    clickfix_indicators = ["navigator.clipboard.writetext", "execcommand('copy')", "execcommand(\"copy\")"]
-    shell_indicators = ["powershell", "mshta", "iex(", "irm ", " invoke-webrequest", "cmd.exe /c", "win+r", "win + r"]
-    clickfix_detected = any(c in lower_html for c in clickfix_indicators) and any(s in lower_html for s in shell_indicators)
-    if clickfix_detected:
-        dom_points += 60
-        alerts.append("CRITICAL: ClickFix Fake Verification Clipboard PowerShell Hijack Detected")
-
-    # 3. Browser-in-the-Browser (BitB) Fake Popup Detection
-    bitb_detected = ("accounts.google.com/o/oauth2" in lower_html or "login.microsoftonline.com" in lower_html) and ("title-bar" in lower_html or "window-controls" in lower_html or "ssl-lock" in lower_html)
-    if bitb_detected:
-        dom_points += 50
-        alerts.append("Browser-in-the-Browser (BitB) Fake OAuth Popup Window Detected")
-
-    # 4. Web3 Crypto Wallet Drainer Detection
-    crypto_indicators = ["window.ethereum", "eth_sendtransaction", "eth_signtypeddata", "permit2", "seaport", "solana.connect"]
-    crypto_drainer_detected = sum(1 for c in crypto_indicators if c in lower_html) >= 2
-    if crypto_drainer_detected:
-        dom_points += 50
-        alerts.append("Web3 Crypto Wallet Drainer Script Signature Detected")
-
-    # 5. Telegram Bot Token & Chat ID Exfiltration Hunter
-    tg_tokens = re.findall(r"bot([0-9]{8,10}:[A-Za-z0-9_-]{35})", html)
-    tg_chat_ids = re.findall(r"chat_id['\"\s:=]+(-?[0-9]{7,13})", html)
-    telegram_info = None
-    if tg_tokens:
-        dom_points += 65
-        telegram_info = await unmask_telegram_bot(client, tg_tokens[0])
-        if tg_chat_ids:
-            telegram_info["chat_id"] = tg_chat_ids[0]
-        alerts.append(f"Confirmed Telegram Exfiltration C2 Detected ({telegram_info['bot_username']})")
-
-    # 6. Discord Webhook Exfiltration Hunter
-    discord_hooks = list(set(re.findall(r"https://(?:ptb\.|canary\.)?discord(?:app)?\.com/api/webhooks/[0-9]+/[A-Za-z0-9_-]+", html)))
-    if discord_hooks:
-        dom_points += 60
-        alerts.append("Discord Webhook Credential Exfiltration Endpoint Found in DOM")
-
-    # 7. Indian UPI Scam Deep-Link Extractor (upi://pay?pa=...)
-    upi_matches = list(set(re.findall(r"upi://pay\?[^\s'\"<>]+", html, re.IGNORECASE)))
-    upi_ids = re.findall(r"pa=([a-zA-Z0-9.\-_]+@[a-zA-Z]+)", html)
-    if upi_ids:
-        dom_points += 35
-        alerts.append(f"Suspicious Merchant UPI Payment Collector Extracted: {', '.join(upi_ids[:2])}")
-
-    # 8. JS De-obfuscator
-    deobfuscated = deobfuscate_javascript(html)
-    if deobfuscated:
-        dom_points += 25
-        alerts.append(f"Obfuscated JavaScript Unpacked ({len(deobfuscated)} hidden payload blocks)")
-
+    page_title = printable(soup.title.get_text(" ", strip=True), 120) if soup.title else None
+    findings = []
+    matches = link_mismatches(soup)
+    if matches:
+        findings.append(finding("HTML_LINK_MISMATCH", "Submitted HTML", f"{matches} URL label(s) point to a different domain."))
+    context_host = urlsplit(context_url).hostname if context_url else None
+    document_base = context_url or ""
+    base_tag = soup.find("base", href=True)
+    if base_tag:
+        try:
+            base = urlsplit(urljoin(document_base, base_tag["href"]))
+            if base.scheme in {"http", "https"} and base.hostname:
+                document_base = base.geturl()
+        except ValueError:
+            pass
+    has_password_form = False
+    form_count = 0
+    for form in soup.find_all("form", limit=100):
+        form_count += 1
+        password = form.find("input", attrs={"type": re.compile("^password$", re.I)})
+        if not password:
+            continue
+        has_password_form = True
+        try:
+            destination = str(form.get("action") or "").strip()
+            action = urlsplit(urljoin(document_base, destination) if destination else (context_url or ""))
+            host = action.hostname
+        except ValueError:
+            continue
+        if not host:
+            continue
+        target = domain_key(host)
+        if (host == "api.telegram.org" and action.path.startswith("/bot")) or (
+            host in {"discord.com", "discordapp.com"} and action.path.startswith("/api/webhooks/")
+        ):
+            findings.append(finding("HTML_WEBHOOK_FORM", "Submitted HTML", f"A password form references {target}. Endpoint data omitted."))
+        elif context_host and target != domain_key(context_host):
+            uses_foreign_base = bool(destination and not urlsplit(destination).netloc and base_tag)
+            rule = "HTML_CREDENTIAL_FORM_REDIRECT" if uses_foreign_base else "HTML_CROSS_ORIGIN_FORM"
+            findings.append(finding(rule, "Submitted HTML", f"A password form submits to {target}."))
+        if action.scheme == "http":
+            findings.append(finding("HTML_INSECURE_PASSWORD", "Submitted HTML", "The form destination uses unencrypted HTTP."))
+    prompt = re.search(r"\b(?:win(?:dows)?\s*\+\s*r|paste\s+(?:the\s+)?command)\b", soup.get_text(" ", strip=True), re.I)
+    clipboard_script = False
+    for tag in soup.find_all("script", limit=100):
+        source = (tag.string or "").lower()
+        if re.search(r"""navigator\.clipboard\.writetext|execcommand\s*\(\s*['"]copy""", source) and re.search(r"\b(?:powershell|mshta|cmd\.exe)\b", source):
+            clipboard_script = True
+            break
+    if clipboard_script and prompt:
+        findings.append(finding("HTML_CLIPBOARD_EXEC", "Submitted HTML", "Clipboard write, a command shell cue and a run/paste instruction co-occur."))
     return {
-        "dom_inspected": True,
-        "page_title": title[:80],
-        "has_password_field": has_password,
-        "requested_inputs": list(set(input_types))[:6],
-        "form_action": form_action[:80],
-        "clickfix_detected": clickfix_detected,
-        "bitb_detected": bitb_detected,
-        "crypto_drainer_detected": crypto_drainer_detected,
-        "telegram_exfil": telegram_info,
-        "discord_webhooks": [h[:45] + "...[REDACTED]" for h in discord_hooks[:2]],
-        "upi_scam_ids": list(set(upi_ids))[:3],
-        "upi_raw_links": upi_matches[:2],
-        "deobfuscated_scripts": deobfuscated,
-        "favicon_hash": abs(zlib.crc32(domain.encode())),
-        "dom_risk_points": min(dom_points, 95),
-        "dom_alerts": alerts
-    }
+        "page_title": page_title,
+        "forms_inspected": form_count,
+        "has_password_form": has_password_form,
+        "link_mismatches": matches,
+        "network_activity": "None",
+    }, findings

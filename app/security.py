@@ -1,180 +1,137 @@
-import re
 import html
-import socket
 import ipaddress
-from urllib.parse import urlparse, unquote
+import re
+import socket
+from urllib.parse import unquote, urlsplit, urlunsplit
+
+import idna
+
 
 class HoneypotTrapTriggered(ValueError):
-    def __init__(self, attack_type: str, payload: str, message: str):
-        super().__init__(message)
+    def __init__(self, attack_type: str, payload: str, message: str | None = None):
         self.attack_type = attack_type
-        self.payload = html.escape(payload[:180])
-        self.message = message
+        self.payload = ""  # Keep the legacy attribute without retaining submitted payloads.
+        self.message = message or f"LOL 😂 Nice try! PhishMatrix honeypot blocked {attack_type}. 🍯"
+        super().__init__(self.message)
 
-BLOCKED_HOSTNAMES = {
-    "localhost", "localhost.localdomain", "ip6-localhost", "ip6-loopback",
-    "metadata.google.internal", "metadata", "169.254.169.254", "0.0.0.0",
-    "127.0.0.1", "::1", "internal", "intranet"
+
+BLOCKED_SUFFIXES = (".local", ".localhost", ".internal", ".lan", ".arpa", ".home")
+PATTERNS = {
+    "cross-site scripting": r"<\s*/?\s*(script|iframe|svg|img)\b|javascript\s*:|\bon(error|load)\s*=",
+    "SQL injection": r"\bunion\s+select\b|['\"]\s*(or|and)\s+['\d].*?=|\bor\s+1\s*=\s*1\b",
+    "command injection": r";\s*(cat|id|whoami|bash|curl)\b|\$\([^)]+\)",
+    "path traversal probe": r"(?:\.\.[/\\]){2}|/etc/(?:passwd|shadow)",
+    "template injection": r"\{\{[^}]+\}\}",
+    "prompt injection": r"ignore\s+(?:all\s+)?(?:previous|prior|system)\s+instructions",
 }
+CONTROL = re.compile(r"[\x00-\x1f\x7f-\x9f\u202a-\u202e\u2066-\u2069]")
+AMBIGUOUS_IP = re.compile(r"(?:0x[\da-f]+|[0-9]+)(?:\.(?:0x[\da-f]+|[0-9]+)){0,3}", re.I)
 
-PROMPT_INJECTION_PATTERNS = [
-    r"ignore\s+(all\s+)?(previous|prior|above|system)\s+instructions",
-    r"system\s*prompt",
-    r"you\s+are\s+now",
-    r"disregard\s+all",
-    r"mark\s+this\s+as\s+clean",
-    r"verdict\s*[:=]\s*clean",
-    r"risk_score\s*[:=]\s*0",
-    r"forget\s+everything"
-]
 
-ATTACK_SIGNATURES = [
-    ("Cross-Site Scripting (XSS) Payload", r"(<\s*script|javascript\s*:|onerror\s*=|onload\s*=|onmouseover\s*=|<\s*iframe|<\s*svg|<\s*img|alert\s*\(|document\.cookie|String\.fromCharCode)"),
-    ("SQL Injection (SQLi) Probe", r"(\bunion\s+select\b|\bor\s+1\s*=\s*1\b|\band\s+1\s*=\s*1\b|'\s*or\s*'|admin'\s*--|sleep\s*\(\s*\d+\s*\)|information_schema)"),
-    ("OS Command Injection / RCE Probe", r"(;\s*(cat|ls|id|whoami|uname|wget|curl|nc|bash|sh)\b|\|\|\s*(id|whoami)|`[^`]+`|\$\([^)]+\)|/etc/passwd|/etc/shadow|cmd\.exe|powershell\.exe)"),
-    ("Directory / Path Traversal Probe", r"(\.\./\.\./|\.\.\\\.\.\\|%2e%2e%2f|/proc/self/)"),
-    ("Forbidden SSRF Protocol Scheme", r"^(file|gopher|dict|ldap|ftp|ssh|telnet|sftp|tftp|jar|netdoc)://"),
-    ("Server-Side Template Injection (SSTI)", r"(\{\{.*\}\}|\$\{.*\})")
-]
+def sanitize_for_llm(text: str) -> tuple[str, bool]:
+    cleaned = CONTROL.sub(" ", text or "")
+    cleaned, count = re.subn(PATTERNS["prompt injection"], "[redacted]", cleaned, flags=re.I)
+    return html.escape(cleaned[:300]), bool(count)
+
 
 def is_ip_unsafe(ip_str: str) -> bool:
     try:
-        ip_obj = ipaddress.ip_address(ip_str)
-        if hasattr(ip_obj, "ipv4_mapped") and ip_obj.ipv4_mapped:
-            ip_obj = ip_obj.ipv4_mapped
-
-        # Allow NAT64 IPv6 networks (RFC 6052) used by Cellular/Jio networks
-        if isinstance(ip_obj, ipaddress.IPv6Address) and ip_obj.exploded.startswith("0064:ff9b:0000:0000:0000:0000:"):
-            return False
-
-        return (
-            ip_obj.is_private
-            or ip_obj.is_loopback
-            or ip_obj.is_link_local
-            or ip_obj.is_multicast
-            or ip_obj.is_reserved
-            or ip_obj.is_unspecified
-            or str(ip_obj).startswith("169.254.")
-            or str(ip_obj).startswith("100.64.")
-            or str(ip_obj).startswith("127.")
-            or str(ip_obj) == "0.0.0.0"
-        )
+        ip = ipaddress.ip_address(ip_str)
     except ValueError:
         return True
+    if isinstance(ip, ipaddress.IPv6Address):
+        if ip.ipv4_mapped:
+            ip = ip.ipv4_mapped
+        elif ip in ipaddress.ip_network("64:ff9b::/96") or ip.sixtofour or ip.teredo:
+            return True
+    return not ip.is_global or ip.is_multicast or ip.is_reserved
 
-def sanitize_for_llm(text: str) -> tuple[str, bool]:
-    if not text:
-        return "", False
-    cleaned = re.sub(r"[\x00-\x1f\x7f-\x9f]", " ", text)
-    injection_detected = False
-    for pat in PROMPT_INJECTION_PATTERNS:
-        if re.search(pat, cleaned, flags=re.IGNORECASE):
-            injection_detected = True
-            cleaned = re.sub(pat, "[REDACTED_PROMPT_INJECTION]", cleaned, flags=re.IGNORECASE)
-    return html.escape(cleaned[:300]), injection_detected
 
-def normalize_target(raw_input: str) -> dict:
-    if not raw_input or len(raw_input.strip()) > 2048:
-        raise HoneypotTrapTriggered("Buffer / Length Overflow Attempt", str(raw_input)[:80], "LOL 😂 Nice try! Payload length overflow blocked by PhishMatrix Honeypot! 🍯🤡")
+def normalize_target(raw_input: str, *, resolve: bool = True) -> dict:
+    raw = raw_input.strip()
+    if not raw or len(raw) > 2048:
+        raise ValueError("Enter a URL, domain or IP up to 2,048 characters.")
+    decoded = unquote(unquote(raw))
+    for attack, pattern in PATTERNS.items():
+        if re.search(pattern, decoded, re.I):
+            raise HoneypotTrapTriggered(attack, "")
+    if CONTROL.search(raw) or CONTROL.search(decoded) or "\\" in raw or re.search(r"\s", raw):
+        raise HoneypotTrapTriggered("unsafe URL characters", "")
 
-    raw_trimmed = raw_input.strip()
-    decoded_once = unquote(raw_trimmed)
-    combined_check = f"{raw_trimmed} {decoded_once}"
-
-    for attack_label, pattern in ATTACK_SIGNATURES:
-        if re.search(pattern, combined_check, flags=re.IGNORECASE):
-            raise HoneypotTrapTriggered(
-                attack_label,
-                raw_trimmed,
-                f"LOL 😂 Nice Try! {attack_label} intercepted by PhishMatrix Active Deception Honeypot! 🍯🤡"
-            )
-
-    _, prompt_inj = sanitize_for_llm(combined_check)
-    if prompt_inj:
-        raise HoneypotTrapTriggered(
-            "AI / LLM Prompt Injection Attempt",
-            raw_trimmed,
-            "LOL 😂 Trying to brainwash our AI Analyst? Prompt Injection caught in the Honeypot! 🍯🤖🤡"
-        )
-
-    cleaned = raw_trimmed.replace("[.]", ".").replace("hxxps://", "https://").replace("hxxp://", "http://")
-    url = cleaned if cleaned.startswith(("http://", "https://")) else "https://" + cleaned
-
-    parsed = urlparse(url)
-    if parsed.scheme not in ("http", "https"):
-        raise HoneypotTrapTriggered("Forbidden URI Scheme", raw_trimmed, "LOL 😂 Only HTTP/HTTPS allowed! Nice try! 🍯🤡")
-
-    domain = (parsed.hostname or "").lower().strip(".")
-    if not domain or domain in BLOCKED_HOSTNAMES or domain.endswith((".local", ".internal", ".lan", ".arpa", ".localhost")):
-        raise HoneypotTrapTriggered(
-            "Server-Side Request Forgery (SSRF) Probe",
-            raw_trimmed,
-            f"LOL 😂 Trying to scan internal/loopback host ({domain or 'local'})? Welcome to the SSRF Honeypot! 🍯🤡"
-        )
-
-    if re.match(r"^(0x[0-9a-f]+|\d{8,10}|0\d+\.0\d+.*)$", domain):
-        raise HoneypotTrapTriggered(
-            "SSRF IP Obfuscation (Hex/Octal/Dword)",
-            raw_trimmed,
-            "LOL 😂 Hex/Decimal IP encoding trick spotted! Our SSRF Guard knows that old trick! 🍯🤡"
-        )
-
-    if not re.match(r"^[a-z0-9.\-_]+$", domain):
-        raise HoneypotTrapTriggered(
-            "Malformed Hostname / Injection Probe",
-            raw_trimmed,
-            "LOL 😂 Invalid hostname characters blocked by PhishMatrix Honeypot! 🍯🤡"
-        )
-
-    path = html.escape(parsed.path or "/")
-    query = html.escape(parsed.query or "")
-
-    resolved_ip = None
+    cleaned = raw.replace("[.]", ".")
+    cleaned = re.sub(r"^hxxp(s?)://", r"http\1://", cleaned, flags=re.I)
     try:
-        ip_obj = ipaddress.ip_address(domain)
-        resolved_ip = str(ip_obj)
-        if is_ip_unsafe(resolved_ip):
-            raise HoneypotTrapTriggered(
-                "SSRF Internal / Cloud Metadata IP Probe",
-                raw_trimmed,
-                f"LOL 😂 Private/Loopback/Metadata IP ({resolved_ip}) blocked! No AWS/GCP keys for you today! 🍯🤡"
-            )
-    except ValueError as e:
-        if isinstance(e, HoneypotTrapTriggered):
-            raise
+        supplied_ip = ipaddress.ip_address(cleaned.strip("[]"))
+    except ValueError:
+        supplied_ip = None
+    if isinstance(supplied_ip, ipaddress.IPv6Address):
+        cleaned = f"[{supplied_ip}]"
+    candidate = cleaned if "://" in cleaned else "https://" + cleaned
+    try:
+        parsed = urlsplit(candidate)
+        port = parsed.port
+    except ValueError:
+        raise ValueError("Invalid URL or port.") from None
+    if parsed.scheme not in {"http", "https"}:
+        raise HoneypotTrapTriggered("forbidden URL scheme", "")
+    if parsed.username is not None or parsed.password is not None or "%" in parsed.netloc:
+        raise HoneypotTrapTriggered("ambiguous URL authority", "")
+    hostname = (parsed.hostname or "").rstrip(".").lower()
+    if not hostname:
+        raise ValueError("A hostname is required.")
+
+    try:
+        ip = ipaddress.ip_address(hostname)
+    except ValueError:
+        ip = None
+    if ip is not None:
+        if is_ip_unsafe(str(ip)):
+            raise HoneypotTrapTriggered("non-public IP address", "")
+        domain = str(ip)
+    else:
         try:
-            addr_info = socket.getaddrinfo(domain, None)
-            all_ips = list({item[4][0] for item in addr_info if item[4]})
-            for candidate_ip in all_ips:
-                if is_ip_unsafe(candidate_ip):
-                    raise HoneypotTrapTriggered(
-                        "DNS Rebinding / Internal SSRF Attempt",
-                        raw_trimmed,
-                        f"LOL 😂 DNS Rebinding to internal IP ({candidate_ip}) caught red-handed! 🍯🤡"
-                    )
-            resolved_ip = all_ips[0] if all_ips else None
-        except HoneypotTrapTriggered:
-            raise
-        except Exception:
-            resolved_ip = None
+            domain = idna.encode(hostname, uts46=True, std3_rules=True).decode("ascii").rstrip(".")
+        except idna.IDNAError:
+            raise ValueError("Invalid hostname.") from None
+        if (
+            "." not in domain
+            or domain.endswith(BLOCKED_SUFFIXES)
+            or domain in {"localhost.localdomain", "metadata.google.internal"}
+            or AMBIGUOUS_IP.fullmatch(domain)
+        ):
+            raise HoneypotTrapTriggered("local or ambiguous hostname", "")
 
+    answers = [str(ip)] if ip is not None else []
+    if resolve and not answers:
+        try:
+            answers = sorted({a[4][0] for a in socket.getaddrinfo(domain, None, type=socket.SOCK_STREAM)})
+        except OSError:
+            pass
+        if any(is_ip_unsafe(answer) for answer in answers):
+            raise HoneypotTrapTriggered("non-public DNS result", "")
+
+    authority = f"[{domain}]" if isinstance(ip, ipaddress.IPv6Address) else domain
+    if port is not None and (parsed.scheme, port) not in {("https", 443), ("http", 80)}:
+        authority += f":{port}"
     return {
-        "original_input": html.escape(raw_trimmed),
-        "url": url,
+        "original_input": raw,
+        "url": urlunsplit((parsed.scheme, authority, parsed.path or "/", parsed.query, "")),
         "domain": domain,
-        "path": path,
-        "query": query,
-        "resolved_ip": resolved_ip,
+        "path": parsed.path or "/",
+        "query": parsed.query,
+        "resolved_ip": answers[0] if answers else None,
         "ssrf_blocked": False,
-        "prompt_injection_attempted": False
+        "prompt_injection_attempted": False,
     }
 
-def defang_ioc(url: str, domain: str, ip: str = None) -> dict:
-    safe_url = html.escape(url.replace("https://", "hxxps://").replace("http://", "hxxp://").replace(".", "[.]"))
-    safe_domain = html.escape(domain.replace(".", "[.]"))
-    safe_ip = html.escape(ip.replace(".", "[.]")) if ip else "N/A"
+
+def defang_ioc(url: str, domain: str, ip: str | None = None) -> dict:
     return {
-        "defanged_url": safe_url,
-        "defanged_domain": safe_domain,
-        "defanged_ip": safe_ip
+        "defanged_url": url.replace("https://", "hxxps://", 1).replace("http://", "hxxp://", 1).replace(".", "[.]"),
+        "defanged_domain": domain.replace(".", "[.]"),
+        "defanged_ip": ip.replace(".", "[.]") if ip else "N/A",
     }
+
+
+def printable(text: str, limit: int = 300) -> str:
+    return CONTROL.sub(" ", str(text))[:limit]

@@ -1,85 +1,104 @@
-import os
+"""Offline email header and MIME body triage."""
+
 import re
-import httpx
-from email import message_from_string
-from dotenv import load_dotenv
+from email import policy
+from email.parser import Parser
+from email.utils import parseaddr
 
-load_dotenv()
+from bs4 import BeautifulSoup
 
-async def verify_sender_mailboxlayer(email_addr: str) -> dict:
-    mb_key = os.getenv("MAILBOXLAYER_API_KEY", "").strip()
-    if not mb_key or "@" not in email_addr:
-        return {"verified": False, "note": "Local RFC-5322 Header Check"}
-    try:
-        async with httpx.AsyncClient() as client:
-            resp = await client.get(
-                "http://apilayer.net/api/check",
-                params={"access_key": mb_key, "email": email_addr, "smtp": 1},
-                timeout=3.0
-            )
-            if resp.status_code == 200:
-                d = resp.json()
-                if "error" not in d:
-                    return {
-                        "format_valid": d.get("format_valid", True),
-                        "mx_found": d.get("mx_found", False),
-                        "smtp_check": d.get("smtp_check", False),
-                        "disposable": d.get("disposable", False),
-                        "free_email": d.get("free", False),
-                        "reputation_score": d.get("score", 0.5)
-                    }
-    except Exception:
-        pass
-    return {"verified": True, "note": "Heuristic MX Check"}
+from app.engines.dom_hunter import domain_key, link_mismatches
+from app.scoring import assess, finding
+from app.security import defang_ioc, normalize_target, printable
+
+EXECUTABLE_SUFFIXES = {"exe", "scr", "com", "lnk", "bat", "cmd", "msi", "ps1", "vbs", "js", "wsf", "hta"}
+DOCUMENT_SUFFIXES = {"pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "txt", "jpg", "jpeg", "png"}
+URL_PATTERN = re.compile(r"https?://[^\s'\"<>)\]]+", re.I)
+
+
+def extract_address(msg, field: str) -> tuple[str, str]:
+    header = str(msg.get(field, ""))
+    _, address = parseaddr(header)
+    return printable(header), domain_key(address.rsplit("@", 1)[-1]) if "@" in address else ""
+
 
 def analyze_raw_email(raw_email: str) -> dict:
-    msg = message_from_string(raw_email)
-    from_hdr = msg.get("From", "Unknown Sender")
-    return_path = msg.get("Return-Path", from_hdr)
-    reply_to = msg.get("Reply-To", from_hdr)
-    subject = msg.get("Subject", "No Subject")
-    auth_results = msg.get("Authentication-Results", "").lower()
+    msg = Parser(policy=policy.default).parsestr(raw_email)
+    sender, from_domain = extract_address(msg, "From")
+    return_path, envelope_domain = extract_address(msg, "Return-Path")
+    reply_to, reply_domain = extract_address(msg, "Reply-To")
+    subject = printable(msg.get("Subject") or "No subject")
+    auth = " ".join(str(value) for value in msg.get_all("Authentication-Results", []))
+    claims = {key: re.findall(rf"\b{key}\s*=\s*([a-z]+)", auth, re.I)[:6] for key in ("spf", "dkim", "dmarc")}
 
-    spf_status = "FAIL / SPOOFED" if "spf=fail" in auth_results or "spf=softfail" in auth_results else ("PASS" if "spf=pass" in auth_results else "UNVERIFIED")
-    dkim_status = "FAIL" if "dkim=fail" in auth_results else ("PASS" if "dkim=pass" in auth_results else "UNVERIFIED")
-    dmarc_status = "FAIL" if "dmarc=fail" in auth_results else ("PASS" if "dmarc=pass" in auth_results else "UNVERIFIED")
+    links = set()
+    display_mismatches = 0
+    attachments = []
+    attachment_rules = set()
+    for part in list(msg.walk())[:50]:
+        if part.get_filename() or part.get_content_disposition() == "attachment":
+            filename = part.get_filename() or "Unnamed attachment"
+            if len(filename) <= 1024:
+                extensions = filename.lower().rstrip(" .").split(".")
+                if len(extensions) >= 2 and extensions[-1] in EXECUTABLE_SUFFIXES:
+                    double = len(extensions) >= 3 and extensions[-2] in DOCUMENT_SUFFIXES
+                    attachment_rules.add("EMAIL_DOUBLE_EXTENSION" if double else "EMAIL_ACTIVE_ATTACHMENT")
+            attachments.append(printable(filename, 120))
+            continue
+        if part.get_content_type() not in {"text/plain", "text/html"}:
+            continue
+        try:
+            text = part.get_content()
+        except (LookupError, UnicodeError, ValueError):
+            continue
+        if not isinstance(text, str):
+            continue
+        if part.get_content_type() == "text/html":
+            soup = BeautifulSoup(text, "html.parser")
+            display_mismatches += link_mismatches(soup)
+            links.update(str(a["href"]) for a in soup.find_all("a", href=True, limit=50))
+        else:
+            links.update(URL_PATTERN.findall(text)[:50])
+        if len(links) >= 100:
+            break
 
-    from_domain = re.findall(r"@([A-Za-z0-9.-]+)", from_hdr)
-    rp_domain = re.findall(r"@([A-Za-z0-9.-]+)", return_path)
-    header_mismatch = bool(from_domain and rp_domain and from_domain[0].lower() != rp_domain[0].lower())
+    safe_links = []
+    for candidate in sorted(links)[:100]:
+        if not candidate.lower().startswith(("http://", "https://")):
+            continue
+        try:
+            target = normalize_target(candidate.rstrip(".,"), resolve=False)
+        except ValueError:
+            continue
+        safe_url = target["url"].split("?", 1)[0]
+        safe_links.append(defang_ioc(safe_url, target["domain"])["defanged_url"])
+        if len(safe_links) == 12:
+            break
 
-    hop_ips = list(set(re.findall(r"\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}\b", raw_email)))
-    urls = list(set(re.findall(r"https?://[^\s'\"<>)\]]+", raw_email)))
-
-    risk = 0
-    alerts = []
-    recommendations = []
-    if spf_status.startswith("FAIL") or dmarc_status == "FAIL":
-        risk += 45
-        alerts.append("Email Authentication Failed (SPF/DMARC): High likelihood of sender spoofing")
-        recommendations.append("Quarantine message immediately and enforce DMARC p=reject on gateway.")
-    if header_mismatch:
-        risk += 35
-        alerts.append(f"Header Spoofing Mismatch: 'From' ({from_domain[0]}) != 'Return-Path' ({rp_domain[0]})")
-        recommendations.append(f"Block Return-Path domain '{rp_domain[0]}' on Secure Email Gateway (SEG).")
-    if urls:
-        risk += 20
-        alerts.append(f"Extracted {len(urls)} embedded URL(s) from email body for deep triage")
-        recommendations.append("Submit extracted URLs to PhishMatrix URL Intelligence for sandbox detonation.")
-
+    findings = [
+        finding(rule, "Submitted email", "Matched attachment filename metadata. File contents were not opened.")
+        for rule in sorted(attachment_rules)
+    ]
+    if from_domain and reply_domain and from_domain != reply_domain:
+        findings.append(finding("EMAIL_REPLY_TO", "Submitted email", f"Sender domain {from_domain} differs from Reply-To domain {reply_domain}."))
+    if from_domain and envelope_domain and from_domain != envelope_domain:
+        findings.append(finding("EMAIL_ENVELOPE", "Submitted email", "Different return paths can also be legitimate for mailing services."))
+    if display_mismatches:
+        findings.append(finding("EMAIL_LINK_MISMATCH", "Submitted email", f"{display_mismatches} link label(s) differ from their destination."))
+    if any(token.lower() in {"fail", "softfail"} for values in claims.values() for token in values):
+        findings.append(finding("EMAIL_AUTH_CLAIM", "Submitted header", "Verify this claim in your trusted mail-gateway logs."))
+    result = assess(findings, coverage_sufficient=False)
     return {
+        **result,
+        "email_risk_score": result["risk_score"],
         "subject": subject,
-        "from": from_hdr,
+        "from": sender,
         "return_path": return_path,
         "reply_to": reply_to,
-        "spf": spf_status,
-        "dkim": dkim_status,
-        "dmarc": dmarc_status,
-        "header_spoof_mismatch": header_mismatch,
-        "originating_ips": hop_ips[:5],
-        "extracted_urls": urls[:8],
-        "email_risk_score": min(risk, 100),
-        "verdict": "MALICIOUS_SPOOF" if risk >= 60 else ("SUSPICIOUS" if risk >= 25 else "CLEAN"),
-        "alerts": alerts,
-        "recommendations": recommendations or ["No immediate header spoofing detected; verify link destinations before clicking."]
+        "authentication_claims": claims,
+        "authentication_verified": False,
+        "extracted_urls": list(dict.fromkeys(safe_links)),
+        "attachments": attachments[:12],
+        "alerts": result["triggers"],
+        "recommendations": ["Verify sender authentication in gateway logs and review links in an approved isolation environment."],
     }

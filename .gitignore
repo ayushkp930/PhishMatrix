@@ -7,3 +7,7 @@ venv/
 .vercel/
 .pytest_cache/
 *.log
+/intel-snapshot.json
+.env.*
+!.env.example
+/maltrail-malware-domains.txt

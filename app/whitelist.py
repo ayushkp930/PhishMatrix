@@ -1,38 +1,15 @@
-"""
-PhishMatrix v5.0 — 1,000+ Verified Global & Indian Domain Whitelist Engine.
-Saves API quotas by short-circuiting external API calls on verified root domains
-while still executing full WAF, SSRF, and URL deception checks.
-"""
+"""Allowlist of explicit hostnames for the root-URL reputation fast path."""
 
-CORE_TRUSTED_BRANDS = [
-    "google", "youtube", "microsoft", "apple", "amazon", "facebook", "instagram", "whatsapp",
-    "linkedin", "github", "gitlab", "bitbucket", "stackoverflow", "cloudflare", "vercel",
-    "netlify", "heroku", "digitalocean", "linode", "akamai", "fastly", "oracle", "ibm",
-    "cisco", "paloaltonetworks", "crowdstrike", "fortinet", "checkpoint", "splunk", "elastic",
-    "datadoghq", "newrelic", "sentry", "atlassian", "jira", "confluence", "trello", "slack",
-    "zoom", "dropbox", "box", "notion", "figma", "canva", "adobe", "salesforce", "hubspot",
-    "zendesk", "servicenow", "workday", "okta", "auth0", "onelogin", "duo", "pingidentity",
-    "stripe", "paypal", "visa", "mastercard", "americanexpress", "discover", "wise", "revolut",
-    "coinbase", "binance", "kraken", "blockchain", "metamask", "etherscan", "polygonscan",
-    "openai", "anthropic", "huggingface", "groq", "cohere", "mistral", "perplexity", "kaggle",
-    "wikipedia", "wikimedia", "archive", "mozilla", "ubuntu", "debian", "kali", "fedoraproject",
-    "archlinux", "redhat", "suse", "gentoo", "linuxfoundation", "kernel", "gnu", "apache",
-    "nginx", "docker", "kubernetes", "Hashicorp", "terraform", "ansible", "jenkins", "circleci",
-    "travis-ci", "sonarcloud", "snyk", "dependabot", "veracode", "checkmarx", "qualys", "tenable",
-    "rapid7", "recordedfuture", "mandiant", "virustotal", "urlscan", "abuseipdb", "shodan",
-    "censys", "greynoise", "alienvault", "pulsedive", "phishtank", "openphish", "spamhaus",
-    "tryhackme", "hackthebox", "offsec", "sans", "owasp", "mitre", "nist", "cve", "first",
-    "coursera", "edx", "udemy", "udacity", "pluralsight", "khanacademy", "leetcode", "hackerrank",
-    "codechef", "codeforces", "geeksforgeeks", "freecodecamp", "w3schools", "mdn", "dev",
-    "medium", "substack", "wordpress", "blogger", "tumblr", "ghost", "hashnode", "reddit",
-    "quora", "pinterest", "x", "twitter", "tiktok", "snapchat", "discord", "telegram", "signal",
-    "spotify", "netflix", "hulu", "disneyplus", "primevideo", "Hotstar", "jiocinema", "sonyliv",
-    "zee5", "twitch", "vimeo", "soundcloud", "imdb", "rottentomatoes", "goodreads", "letterboxd",
-    "nytimes", "washingtonpost", "wsj", "bbc", "theguardian", "reuters", "bloomberg", "forbes",
-    "techcrunch", "theverge", "wired", "arstechnica", "zdnet", "bleepingcomputer", "krebsonsecurity",
-    "thehackernews", "darkreading", "securityweek", "threatpost", "csoonline", "isc2", "isaca",
-    "comptia", "eccouncil", "credly", "acclaim", "pearsonvue", "prometric", "ets", "britishcouncil"
-]
+from urllib.parse import urlsplit
+
+GLOBAL_TRUSTED_DOMAINS = {
+    "apple.com", "amazon.com", "archive.org", "atlassian.com", "cloudflare.com",
+    "comptia.org", "debian.org", "docker.com", "facebook.com", "github.com",
+    "gitlab.com", "google.com", "hackthebox.com", "linkedin.com", "microsoft.com",
+    "mozilla.org", "netflix.com", "openai.com", "owasp.org", "paypal.com",
+    "sans.org", "splunk.com", "stackoverflow.com", "tryhackme.com", "ubuntu.com",
+    "virustotal.com", "wikipedia.org", "youtube.com",
+}
 
 INDIAN_TRUSTED_DOMAINS = {
     "onlinesbi.sbi", "sbi.co.in", "sbicard.com", "hdfcbank.com", "icicibank.com", "axisbank.com",
@@ -54,38 +31,14 @@ INDIAN_TRUSTED_DOMAINS = {
     "thehindu.com", "indianexpress.com", "ndtv.com", "hindustantimes.com", "timesofindia.indiatimes.com"
 }
 
-GLOBAL_TLDS = [".com", ".org", ".net", ".io", ".co", ".in", ".co.uk", ".de", ".ca", ".au", ".jp", ".dev", ".app", ".ai", ".edu", ".gov"]
-
-def _build_1000_whitelist() -> set:
-    wl = set(INDIAN_TRUSTED_DOMAINS)
-    for brand in CORE_TRUSTED_BRANDS:
-        b = brand.lower()
-        for tld in GLOBAL_TLDS:
-            wl.add(f"{b}{tld}")
-    return wl
-
-WHITELIST_1000_DOMAINS = _build_1000_whitelist()
 
 def is_whitelisted_domain(domain: str, url: str) -> bool:
-    """
-    Checks if a domain belongs to the 1,000+ Verified Whitelist AND has no URL redirection/spoofing tricks.
-    """
-    if "@" in url or ".." in url:
-        return False
-    low_url = url.lower()
-    # Do not fast-path if open-redirect query parameters are present
-    if any(k in low_url for k in ["?redirect=", "&redirect=", "?url=http", "&url=http", "?next=http"]):
-        return False
-
-    parts = domain.lower().strip(".").split(".")
-    if len(parts) < 2:
-        return False
-
-    reg_2 = ".".join(parts[-2:])
-    reg_3 = ".".join(parts[-3:]) if len(parts) >= 3 else reg_2
-
-    if domain in WHITELIST_1000_DOMAINS or reg_2 in WHITELIST_1000_DOMAINS or reg_3 in WHITELIST_1000_DOMAINS:
-        return True
-    if domain.endswith((".gov.in", ".nic.in", ".ac.in", ".edu.in", ".mil")):
-        return True
-    return False
+    parsed = urlsplit(url)
+    return (
+        (domain in GLOBAL_TRUSTED_DOMAINS or domain in INDIAN_TRUSTED_DOMAINS)
+        and parsed.scheme == "https"
+        and parsed.netloc.lower() == domain
+        and parsed.path in ("", "/")
+        and not parsed.query
+        and not parsed.fragment
+    )
