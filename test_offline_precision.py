@@ -4,6 +4,7 @@ from io import BytesIO
 import json
 import sqlite3
 from zipfile import ZipFile
+from base64 import b64decode
 
 import pytest
 import yara
@@ -81,6 +82,42 @@ def test_connectors_can_fail_and_local_case_survives(monkeypatch):
     assert case["verdict"] == "SUSPICIOUS"
     assert case["providers"]["External reputation"]["status"] == "Unavailable"
     assert case["siem_event"]["phishmatrix"]["findings"]["BRAND_LURE"]
+
+
+def test_newsletter_reply_routing_and_attached_email_stay_context_only():
+    raw = ('From: news@publisher.org\nReply-To: replies@mailer.org\nMIME-Version: 1.0\n'
+           'Content-Type: multipart/mixed; boundary=sample\n\n'
+           '--sample\nContent-Type: text/plain\n\nNewsletter\n'
+           '--sample\nContent-Type: message/rfc822\nContent-Disposition: attachment; filename=example.eml\n\n'
+           'From: sender@example.org\nContent-Type: text/html\n\n'
+           '<a href="https://collector.example/">https://publisher.org/</a>\n--sample--')
+    result = analyze_raw_email(raw)
+    assert result["risk_score"] == 0
+    assert not result["extracted_urls"]
+    assert {item["rule_id"] for item in result["evidence"]} == {"EMAIL_REPLY_TO", "EMAIL_ATTACHED_MESSAGE"}
+
+
+def test_email_archive_and_reply_correlation_use_exact_link(monkeypatch):
+    def history(url):
+        return {"status": "Historical match" if url == "https://collector.example/record" else "No historical match"}
+
+    monkeypatch.setattr("app.email_parser.historical_url_lookup", history)
+    raw = "From: alerts@example.org\nReply-To: reply@collector.example\n\nhttps://collector.example/record"
+    result = analyze_raw_email(raw)
+    assert (result["verdict"], result["risk_score"]) == ("SUSPICIOUS", 42)
+    assert any(item["rule_id"] == "EMAIL_ARCHIVED_THREAT" for item in result["evidence"])
+    assert analyze_raw_email(raw + "#another-page")["risk_score"] == 0
+
+
+def test_email_report_is_opt_in_and_keeps_raw_message_out():
+    text = "From: alerts@example.org\nSubject: Review <b>plain</b>\n\nPrivate body marker"
+    with TestClient(app) as client:
+        plain = client.post("/api/v1/email-scan", json={"raw_email": text}).json()
+        response = client.post("/api/v1/email-scan", json={"raw_email": text, "include_pdf": True})
+    assert response.status_code == 200
+    assert "report_pdf" not in plain
+    assert "Private body marker" not in response.text
+    assert b64decode(response.json()["report_pdf"], validate=True).startswith(b"%PDF-")
 
 
 def test_recent_urlscan_positive_survives_without_exact_negative_coverage(monkeypatch):
