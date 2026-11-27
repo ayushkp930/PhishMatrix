@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="dark">
   <title>PhishMatrix · Investigation Console</title>
-  <link rel="stylesheet" href="/static/workbench.css?v=7.7">
-  <script src="/static/workbench.js?v=7.7" defer></script>
+  <link rel="stylesheet" href="/static/workbench.css?v=7.8">
+  <script src="/static/workbench.js?v=7.8" defer></script>
 </head>
 <body>
   <a class="skip" href="#investigate">Skip to investigation</a>
@@ -21,9 +21,9 @@
     <div class="sidebar-footer"><span class="server-dot" id="server-dot"></span><div><strong id="server-status">Checking API</strong><small id="server-version">Connection status</small></div></div>
   </aside>
   <main id="workbench">
-    <header class="topbar"><span>Workspace <span class="slash">/</span> Investigations</span><span class="mode-badge"><span></span>Passive mode</span></header>
+    <header class="topbar"><span>Workspace <span class="slash">/</span> Investigations</span><span class="mode-badge"><span></span>Static email analysis</span></header>
     <section class="hero" id="investigate">
-      <div class="hero-copy"><h1>Phishing<br>investigation<span>.</span></h1><p>Analyze suspicious links, messages and page samples. See what drove the verdict and carry the evidence into your SOC workflow.</p><button type="button" id="sample" class="button secondary"><span class="play" aria-hidden="true">▷</span> Load training sample</button></div>
+      <div class="hero-copy"><h1>Email phishing<br>investigation<span>.</span></h1><p>Paste an email or upload an .eml file. Review the findings and export an investigation report.</p><button type="button" id="sample" class="button secondary"><span class="play" aria-hidden="true">▷</span> Load training sample</button></div>
       <div class="hero-instrument" role="img" aria-label="Animated radar during analysis">
         <div class="radar"><div class="radar-grid"></div><div class="radar-beam"></div><i class="blip blip-one"></i><i class="blip blip-two"></i><i class="blip blip-three"></i><span class="radar-center">+</span></div>
         <div class="instrument-footer"><span class="sensor-dot"></span><span id="radar-status">Ready to analyze</span><span id="live-timer" aria-hidden="true">—</span></div>
@@ -32,20 +32,12 @@
     <div class="overview">
       <section class="card input-card" aria-labelledby="scan-heading">
         <div class="section-head"><h2 id="scan-heading">New investigation</h2></div>
-        <div class="tabs" role="group" aria-label="Input type">
-          <button type="button" data-mode="url" aria-pressed="true">URL or domain</button>
-          <button type="button" data-mode="email" aria-pressed="false">Email</button>
-          <button type="button" data-mode="html" aria-pressed="false">HTML sample</button>
-          <button type="button" data-mode="bulk" aria-pressed="false">Bulk</button>
-          <button type="button" data-mode="hash" aria-pressed="false">File hash</button>
-        </div>
         <form id="scan-form">
-          <label for="indicator" id="indicator-label">URL, domain or IP address</label>
-          <input id="indicator" name="indicator" type="text" maxlength="2048" placeholder="https://example.com" autocapitalize="off" autocomplete="off" spellcheck="false" required>
-          <label for="sample-text" id="sample-label" hidden>Sample</label>
-          <textarea id="sample-text" name="sample" rows="5" spellcheck="false" hidden></textarea>
-          <p id="input-help" class="input-help">Checks registration and reputation without opening the submitted page.</p>
-          <label id="offline-option"><input id="offline-mode" type="checkbox"> Analyze offline with local evidence only</label>
+          <label for="sample-text">Raw email</label>
+          <textarea id="sample-text" name="sample" rows="8" maxlength="50000" spellcheck="false" required placeholder="From: sender@example.org&#10;Subject: Message to investigate&#10;&#10;Paste the email here."></textarea>
+          <label for="email-file">Upload .eml</label>
+          <input id="email-file" type="file" accept=".eml,message/rfc822" aria-describedby="input-help">
+          <p id="input-help" class="input-help">Up to 50 KB. The scan inspects headers, text, links and attachment names.</p>
           <div class="scan-actions"><button type="submit" class="button primary" id="run">Analyze <span aria-hidden="true">→</span></button><span id="scan-status" role="status"></span></div>
         </form>
         <div id="scan-error" class="scan-error" role="alert" hidden></div>
@@ -57,18 +49,17 @@
       </section>
     </div>
     <div class="stats" aria-label="Latest investigation metadata">
-      <div class="card stat"><span>Registration age</span><strong id="domain-age">—</strong><small id="domain-source">RDAP / WHOIS</small></div>
+      <div class="card stat"><span>Links found</span><strong id="link-count">—</strong><small>Defanged in reports</small></div>
       <div class="card stat"><span>Evidence signals</span><strong id="signal-count">—</strong><small id="signal-detail">Scored and contextual findings</small></div>
       <div class="card stat"><span>Scan duration</span><strong id="duration">—</strong><small id="scan-mode">Latest investigation</small></div>
     </div>
     <section id="evidence" aria-label="Investigation evidence">
       <article class="card panel">
-        <div class="section-head"><div><h2>Evidence timeline</h2><p>Findings and recommended actions</p></div><span id="evidence-total" class="pill">0 findings</span></div>
+        <div class="section-head"><div><h2>Evidence timeline</h2><p>Findings and recommended actions</p></div><div class="button-row"><span id="evidence-total" class="pill">0 findings</span><button class="button secondary" type="button" id="download-case" disabled>Export JSON</button><button class="button secondary" type="button" id="download-pdf" disabled>Export PDF</button></div></div>
         <div class="evidence-tools" id="evidence-tools" hidden><label for="filter-evidence">Show</label><select id="filter-evidence"><option value="all">All findings</option><option value="scored">Scored findings</option><option value="context">Context only</option></select></div>
         <ul id="findings" class="findings"></ul><p id="evidence-empty" class="empty">Findings will appear here after a scan.</p>
         <div id="response-context" hidden></div><ul id="actions" class="actions" hidden></ul>
         <div id="breakdown" hidden><h3>Score contributions</h3><ul id="score-rows" class="score-rows"></ul><p class="input-help" id="score-cap" hidden></p></div>
-        <div class="model-context" id="analyst-advisory" hidden><div><h3>AI advisory</h3><span class="pill" id="advisory-source"></span></div><p id="advisory-text"></p></div>
       </article>
     </section>
     <section id="case-notes" class="card panel bottom-panel" hidden>
@@ -76,7 +67,7 @@
       <div class="review-grid"><label for="disposition">Disposition<select id="disposition"><option value="Unreviewed">Unreviewed</option><option>Needs follow-up</option><option>Benign</option><option>Confirmed phishing</option></select></label><label for="notes">Review notes<textarea id="notes" rows="3" maxlength="1500" placeholder="Record what you verified and the next action."></textarea></label></div>
     </section>
     <section id="rules" class="card panel bottom-panel">
-      <div class="section-head wrap"><div><h2>SOC rule library</h2><p>Hunting templates and detection rule catalogue</p></div><div class="button-row"><button class="button secondary" type="button" id="toggle-rules" aria-expanded="false" aria-controls="catalogue">Rule catalogue</button><button class="button secondary" type="button" id="download-case" disabled>Export case JSON</button><button class="button secondary" type="button" id="download-siem" disabled>Export SIEM event</button></div></div>
+      <div class="section-head wrap"><div><h2>SOC rule library</h2><p>Hunting templates and detection rule catalogue</p></div><div class="button-row"><button class="button secondary" type="button" id="toggle-rules" aria-expanded="false" aria-controls="catalogue">Rule catalogue</button><button class="button secondary" type="button" id="download-siem" disabled>Export SIEM event</button></div></div>
       <div id="rule-picker" hidden><label for="rule-select">Hunting template</label><div class="copy-row"><select id="rule-select"></select><button class="button secondary" type="button" id="copy-rule">Copy rule</button></div><p id="rule-scope"></p><pre id="rule-text"></pre></div>
       <a class="button secondary" href="/api/v1/rules/pack.zip" download>Download Sigma and YARA pack</a>
       <div id="catalogue" hidden aria-live="polite"></div>
