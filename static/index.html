@@ -6,7 +6,7 @@
   <meta name="color-scheme" content="dark">
   <title>PhishMatrix · Investigation Console</title>
   <link rel="stylesheet" href="/static/workbench.css">
-  <script src="/static/workbench.js" defer></script>
+  <script src="/static/workbench.js?v=7.6" defer></script>
 </head>
 <body>
   <a class="skip" href="#investigate">Skip to investigation</a>
@@ -52,7 +52,7 @@
       </section>
       <section class="card risk-card" aria-labelledby="risk-heading" data-tone="neutral">
         <div class="risk-header"><h2 id="risk-heading">Risk assessment</h2><span class="pill" id="verdict">Awaiting scan</span></div>
-        <div class="risk-meter"><div class="risk-number"><strong id="risk-score">—</strong><small>/ 100</small></div><div class="risk-meter-right"><div class="risk-track" aria-hidden="true"><svg viewBox="0 0 100 6" preserveAspectRatio="none"><path class="ring-track" d="M0 3H100"/><path class="ring-fill" id="ring-fill" d="M0 3H100" pathLength="100" stroke-dasharray="0 100"/></svg></div><p id="risk-reason">Run an investigation to see the score and its supporting evidence.</p></div></div>
+        <div class="risk-meter"><div class="risk-number" role="group" aria-label="Evidence score"><strong id="risk-score">—</strong><small>/ 100</small></div><div class="risk-meter-right"><div class="risk-track" aria-hidden="true"><svg viewBox="0 0 100 6" preserveAspectRatio="none"><path class="ring-track" d="M0 3H100"/><path class="ring-fill" id="ring-fill" d="M0 3H100" pathLength="100" stroke-dasharray="0 100"/></svg></div><p id="risk-reason">Run an investigation to see the score and its supporting evidence.</p></div></div>
         <div class="risk-foot"><span>Case reference</span><code id="case-id">—</code></div>
       </section>
     </div>

@@ -4,6 +4,7 @@ import asyncio
 import os
 import time
 from datetime import datetime, timezone
+from urllib.parse import urlsplit
 from uuid import uuid4
 from hashlib import sha256
 
@@ -38,7 +39,9 @@ def recommendations(verdict: str) -> list[dict]:
             ("P2", "Open an analyst review", "Check the sender and destination in trusted sources. Review page contents using approved isolation if needed."),
             ("P3", "Hunt for the indicator", "Validate the generated SIEM rule against your schema and run it in audit mode."),
         ],
-        "INCONCLUSIVE": [("P3", "Collect missing evidence", "Check provider availability and add trusted email, HTML or gateway evidence.")],
+        "INCONCLUSIVE": [("P3", "Collect missing evidence", "Check source coverage and add email, HTML or gateway evidence if the link needs review.")],
+        "LOW_SIGNAL": [("P3", "Review weak signals", "Check the source and scope of each finding before escalating.")],
+        "TRUSTED_ROOT": [("INFO", "Check the original link", "If a message linked to a specific page, scan that exact URL for a page-level assessment.")],
         "CLEAN": [("INFO", "Continue monitoring", "The completed reputation check found no listing. Confirm the delivery context before trusting the indicator.")],
     }
     return [{"priority": priority, "category": category, "action": action} for priority, category, action in guidance[verdict]]
@@ -70,7 +73,8 @@ def safe_target(target: dict) -> dict:
 
 def reputation_coverage(target: dict, feeds: dict, allowlisted: bool) -> dict:
     # For a web URL, a negative IP/host lookup or a limited blocklist cannot cover a specific page.
-    address_only = target["domain"] == target["resolved_ip"] and target["path"] == "/" and not target["query"]
+    address_only = (target["domain"] == target["resolved_ip"] and target["path"] == "/"
+                    and not target["query"] and not target["has_fragment"] and urlsplit(target["url"]).port is None)
     if address_only:
         scope = "ip"
         sources = [PROVIDER_NAMES[name] for name in sorted(IP_REPUTATION_SOURCES & feeds.keys())
@@ -79,15 +83,18 @@ def reputation_coverage(target: dict, feeds: dict, allowlisted: bool) -> dict:
         scope = "url"
         web_risk = feeds.get("webrisk", {})
         sources = [PROVIDER_NAMES["webrisk"]] if (
-            web_risk.get("scope") == "url" and web_risk.get("status") == "No match"
+            web_risk.get("scope") == "url" and web_risk.get("status") == "No match" and not target["has_fragment"]
         ) else []
     if sources:
         note = f"No match from {', '.join(sources)} for this {scope.upper()}."
     elif allowlisted:
-        note = "Allowlisted root. External reputation checks were skipped."
+        note = "Exact HTTPS root on the trusted list with confirmed registration. Live reputation was skipped."
+    elif target["has_fragment"]:
+        note = "The client-side URL fragment was excluded from reputation checks."
     else:
-        note = f"No completed {scope.upper()}-level negative reputation check. Host and historical results cannot establish current safety."
-    return {"scope": scope, "negative_sources": sources, "sufficient_for_no_match": bool(sources), "detail": note}
+        note = f"No completed {scope.upper()}-level negative reputation check. Review source coverage below."
+    return {"scope": scope, "negative_sources": sources, "sufficient_for_no_match": bool(sources),
+            "trusted_root": allowlisted, "detail": note}
 
 
 async def investigate_target(raw_input: str, *, offline: bool = False) -> dict:
@@ -117,7 +124,7 @@ async def investigate_target(raw_input: str, *, offline: bool = False) -> dict:
     for hit in snapshot["hits"]:
         identifier = {"url": "TI_URL_EXACT", "domain": "TI_DOMAIN", "ip": "TI_IP"}[hit["scope"]]
         findings.append(finding(identifier, hit["source"], f"Exact {hit['scope']} match. Valid until {hit['expires_at']}."))
-    is_allowlist_candidate = not findings and is_whitelisted_domain(domain, url)
+    is_allowlist_candidate = not findings and not target["has_fragment"] and is_whitelisted_domain(domain, url)
 
     allowlisted = False
     whois = unknown_registration(domain)
@@ -151,14 +158,24 @@ async def investigate_target(raw_input: str, *, offline: bool = False) -> dict:
             findings.append(finding(identifier, PROVIDER_NAMES[name], f"Observed {scope}-level reputation evidence."))
 
     coverage = reputation_coverage(target, feeds, allowlisted)
-    result = assess(findings, coverage_sufficient=coverage["sufficient_for_no_match"])
+    result = assess(findings, coverage_sufficient=coverage["sufficient_for_no_match"], trusted_root=allowlisted)
     verdict = result["verdict"]
     analyst = {"providers": {}}
-    if not offline:
+    if not offline and not allowlisted:
         async with httpx.AsyncClient(timeout=1.8, follow_redirects=False) as client:
             analyst = await bounded_lookup(summarize(client, result), {"providers": {"Summary": "Unavailable"}}, seconds=5)
-    else:
+    if offline:
         coverage["detail"] = "Offline analysis used local URL rules and available IOC indexes. Live reputation and registration were skipped."
+    if verdict in {"MALICIOUS", "SUSPICIOUS"}:
+        lead = next(item["label"] for item in result["evidence"] if item["points"])
+        executive_summary = f"Top finding: {lead}."
+    elif verdict == "LOW_SIGNAL":
+        executive_summary = f"Findings below the alert threshold. {coverage['detail']}"
+    elif verdict == "INCONCLUSIVE":
+        prefix = "Findings below the alert threshold." if result["risk_score"] else "No risk points from available checks."
+        executive_summary = f"{prefix} {coverage['detail']}"
+    else:
+        executive_summary = coverage["detail"]
     case_id = str(uuid4())
     timestamp = datetime.now(timezone.utc).isoformat()
     providers = {PROVIDER_NAMES[name]: feed for name, feed in feeds.items()}
@@ -169,15 +186,14 @@ async def investigate_target(raw_input: str, *, offline: bool = False) -> dict:
     if offline:
         providers["External reputation"] = {"status": "Offline"}
         providers["RDAP / WHOIS"] = {"status": "Offline"}
+    elif allowlisted:
+        providers["External reputation"] = {"status": "Skipped · trusted root"}
     return {
         **result,
         "case_id": case_id,
         "timestamp": timestamp,
         "kind": "url",
-        "executive_summary": (
-            coverage["detail"] if verdict in {"INCONCLUSIVE", "CLEAN"}
-            else f"{verdict.title()} based on {len(result['evidence'])} evidence item(s)."
-        ),
+        "executive_summary": executive_summary,
         "reputation_coverage": coverage,
         "domain_age": registration_label(whois),
         "registrar": whois["registrar"],

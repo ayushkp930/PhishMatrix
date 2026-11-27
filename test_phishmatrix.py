@@ -149,15 +149,36 @@ def test_same_day_in_url_bulk_and_cli(offline_client):
     assert "Under 24 hours" in cli.text
 
 
-def test_allowlist_cannot_skip_age_and_unknown_is_inconclusive(offline_client):
+def test_trusted_root_requires_confirmed_age_and_exact_https_root(offline_client, monkeypatch):
     client, dates = offline_client
+    monkeypatch.delenv("PHISHMATRIX_INCLUDE_ALLOWLIST", raising=False)
+    calls = []
+
+    async def feeds(client, url, domain, ip):
+        calls.append(url)
+        return {"webrisk": {"scope": "url", "status": "No match" if url == "https://github.com/" else "Unavailable"}}
+
+    monkeypatch.setattr(orchestrator, "query_all_threat_feeds", feeds)
     initial = client.post("/api/v1/scan", json={"url": "github.com"}).json()
     assert initial["scan_metadata"]["whitelist_fast_path"]
-    assert initial["verdict"] == "INCONCLUSIVE"
+    assert initial["verdict"] == initial["siem_event"]["phishmatrix"]["verdict"] == "TRUSTED_ROOT"
+    assert initial["risk_score"] == 0
+    assert initial["providers"]["External reputation"]["status"] == "Skipped · trusted root"
+    assert initial["reputation_coverage"]["trusted_root"]
+    assert not initial["reputation_coverage"]["sufficient_for_no_match"]
+    assert not calls
+    batch = client.post("/api/v1/bulk-scan", json={"urls": ["github.com", "github.com/login", "github.com/#/login"]}).json()
+    assert [row["verdict"] for row in batch["results"]] == ["TRUSTED_ROOT", "INCONCLUSIVE", "INCONCLUSIVE"]
+    assert "fragment was excluded" in batch["results"][2]["reputation_coverage"]["detail"]
+    assert client.post("/api/v1/scan", json={"url": "github.com", "offline": True}).json()["verdict"] == "INCONCLUSIVE"
     dates["github.com"] = "2026-11-26T07:20:00Z"
     current = client.post("/api/v1/scan", json={"url": "github.com"}).json()
     assert current["verdict"] == "SUSPICIOUS"
     assert not current["scan_metadata"]["whitelist_fast_path"]
+    del dates["github.com"]
+    unknown = client.post("/api/v1/scan", json={"url": "github.com"}).json()
+    assert unknown["verdict"] == "CLEAN"
+    assert not unknown["reputation_coverage"]["trusted_root"]
     assert client.post("/api/v1/scan", json={"url": "unknown.com"}).json()["verdict"] == "INCONCLUSIVE"
 
 
@@ -391,6 +412,34 @@ def test_completed_url_reputation_reports_no_listing(offline_client, monkeypatch
     assert result["verdict"] == "CLEAN"
     assert result["reputation_coverage"]["negative_sources"] == ["Google Web Risk"]
     assert result["executive_summary"] == "No match from Google Web Risk for this URL."
+
+
+def test_checked_trusted_root_can_report_a_current_match(offline_client, monkeypatch):
+    client, _ = offline_client
+    monkeypatch.setenv("PHISHMATRIX_INCLUDE_ALLOWLIST", "1")
+
+    async def feeds(*args):
+        return {"webrisk": {"scope": "url", "status": "Match"}}
+
+    monkeypatch.setattr(orchestrator, "query_all_threat_feeds", feeds)
+    result = client.post("/api/v1/scan", json={"url": "github.com"}).json()
+    assert (result["verdict"], result["risk_score"]) == ("MALICIOUS", 75)
+    assert "Current exact URL reputation match" in result["executive_summary"]
+
+
+def test_completed_ip_no_match_does_not_hide_a_conflicting_finding(offline_client, monkeypatch):
+    client, _ = offline_client
+
+    async def feeds(*args):
+        return {"abuseipdb": {"scope": "ip", "status": "Match"},
+                "virustotal": {"scope": "ip", "status": "No match"}}
+
+    monkeypatch.setattr(orchestrator, "query_all_threat_feeds", feeds)
+    address = client.post("/api/v1/scan", json={"url": "8.8.8.8"}).json()
+    assert (address["verdict"], address["risk_score"]) == ("LOW_SIGNAL", 12)
+    assert "below the alert threshold" in address["executive_summary"]
+    service = client.post("/api/v1/scan", json={"url": "https://8.8.8.8:8443/"}).json()
+    assert (service["verdict"], service["risk_score"]) == ("INCONCLUSIVE", 12)
 
 
 def test_historical_index_matches_a_path_without_clearing_the_host(offline_client, monkeypatch):

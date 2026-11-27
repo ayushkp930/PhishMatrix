@@ -40,8 +40,12 @@ const templateNames = {
   elastic_kql: 'Elastic KQL', crowdstrike_cql: 'CrowdStrike LogScale',
   wazuh_rule: 'Wazuh XML', suricata_rule: 'Suricata TLS', yara_rule: 'YARA · hostname in file text',
 };
-const tone = { CLEAN: 'positive', SUSPICIOUS: 'warning', INCONCLUSIVE: 'warning', MALICIOUS: 'danger' };
-const labelVerdict = { CLEAN: 'No match found', SUSPICIOUS: 'Suspicious', INCONCLUSIVE: 'Inconclusive', MALICIOUS: 'Malicious', BLOCKED: 'Blocked', UNAVAILABLE: 'Unavailable' };
+const tone = { CLEAN: 'positive', TRUSTED_ROOT: 'positive', LOW_SIGNAL: 'warning', SUSPICIOUS: 'warning', MALICIOUS: 'danger' };
+const labelVerdict = {
+  CLEAN: 'No match found', TRUSTED_ROOT: 'Known trusted domain', LOW_SIGNAL: 'Weak signals',
+  SUSPICIOUS: 'Suspicious', INCONCLUSIVE: 'Inconclusive', MALICIOUS: 'Malicious',
+  BLOCKED: 'Blocked', UNAVAILABLE: 'Unavailable',
+};
 let mode = 'url';
 let current = null;
 let running = false;
@@ -109,16 +113,17 @@ async function getJSON(endpoint, payload) {
 function riskPanel(result) {
   const isBulk = result?.kind === 'bulk';
   const verdict = result?.verdict;
-  const score = verdict !== 'INCONCLUSIVE' && Number.isFinite(result?.risk_score) ? result.risk_score : null;
+  const score = Number.isFinite(result?.risk_score) ? result.risk_score : null;
   const scoreText = score === null ? '—' : String(score);
   byId('verdict').textContent = isBulk ? 'Batch complete' : labelVerdict[verdict] || 'Awaiting scan';
   byId('risk-score').textContent = scoreText;
   byId('ring-fill').setAttribute('stroke-dasharray', `${score || 0} 100`);
   document.querySelector('.risk-card').dataset.tone = tone[verdict] || 'neutral';
   const age = result?.forensics?.whois;
-  const explanation = age?.is_newly_registered
-    ? `${age.queried_domain} · ${result.domain_age}`
-    : result?.score_capped ? 'The score counts overlapping signals once and applies evidence limits.' : result?.executive_summary || (isBulk ? `${result.count} indicators analyzed.` : '');
+  const topFinding = result?.evidence?.find((entry) => entry.points > 0);
+  const explanation = result?.executive_summary || (isBulk ? `${result.count} indicators analyzed.` :
+    verdict === 'INCONCLUSIVE' ? (score ? 'Findings below the alert threshold. Coverage is limited.' : 'No risk points from available checks. Coverage is limited.') :
+      topFinding ? `Top finding: ${topFinding.label}.` : '');
   byId('risk-reason').textContent = explanation || (result ? 'Review the evidence and source coverage below.' : 'Run an investigation to see the verdict and its supporting evidence.');
   byId('case-id').textContent = result?.case_id?.slice(0, 8) || '—';
   byId('domain-age').textContent = age && result.domain_age ? result.domain_age.split(' (')[0] : '—';
@@ -140,19 +145,20 @@ function renderEvidence(result) {
     const label = node('div');
     label.append(node('strong', evidence.label), node('small', evidence.detail, 'detail'), node('small', `${evidence.rule_id} · ${evidence.source}`));
     const item = node('li');
-    item.append(label, node('span', evidence.points ? `+${evidence.points}` : 'Context', 'points'));
+    item.append(label, node('span', evidence.points ? `Weight ${evidence.points}` : 'Context', 'points'));
     list.append(item);
   }
   for (const row of result?.results || []) {
     const label = node('div');
     label.append(node('strong', row.indicator || `Indicator ${row.position}`), node('small', row.reputation_coverage?.detail || row.domain_age || row.detail || ''));
     const item = node('li');
-    item.append(label, node('span', labelVerdict[row.verdict] || row.verdict, 'pill'));
+    const verdictLabel = labelVerdict[row.verdict] || row.verdict;
+    item.append(label, node('span', Number.isFinite(row.risk_score) ? `${verdictLabel} · ${row.risk_score}/100` : verdictLabel, 'pill'));
     list.append(item);
   }
   byId('evidence-total').textContent = result?.kind === 'bulk' ? `${result.count} results` : `${rows.length} findings`;
   byId('evidence-empty').hidden = Boolean(list.children.length);
-  byId('evidence-empty').textContent = rows.length ? 'No findings match this filter.' : result?.kind === 'hash' ? result.executive_summary : result?.verdict === 'INCONCLUSIVE' ? 'No positive findings. Available evidence is insufficient.' : result ? 'The completed checks returned no findings.' : 'Findings appear when the investigation returns evidence.';
+  byId('evidence-empty').textContent = rows.length ? 'No findings match this filter.' : result?.kind === 'hash' ? result.executive_summary : result ? 'The available checks returned no findings.' : 'Findings appear when the investigation returns evidence.';
 
   const providerList = byId('providers');
   providerList.replaceChildren();

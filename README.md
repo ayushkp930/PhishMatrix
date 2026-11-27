@@ -1,4 +1,4 @@
-# PhishMatrix 7.5 · Investigation Console
+# PhishMatrix 7.6 · Investigation Console
 
 PhishMatrix is a FastAPI phishing triage tool for URLs, domains, IPs, submitted email and inert HTML samples. Each verdict includes the contributing detection rules and the status of the sources queried. The browser session can export case JSON with analyst notes and disposition. Individual investigations export a timestamped SIEM event with the same case ID as the report.
 
@@ -30,8 +30,8 @@ The URL scanner does not request the submitted page. Default outbound traffic fo
 
 - A domain registered within 24 hours adds 40 points and reaches `SUSPICIOUS`. A date-only result qualifies for that band on the current UTC date. A domain aged 1–30 completed days adds 35.
 - Direct RDAP lookups use Verisign for `.com` and `.net`, NIXI for `.in`, and the IANA bootstrap registry for other supported suffixes. The Public Suffix List identifies the registered domain behind URLs such as `login.example.co.in`.
-- Current exact URL matches from a trusted local feed and corroborated clipboard execution patterns can reach `MALICIOUS`. Registration age, IP reputation and lexical features alone are capped below that threshold.
-- The rule engine counts each rule once and caps related evidence. A low score with missing coverage is `INCONCLUSIVE`. An ordinary password field, a normal email link and pasted authentication claims contribute no risk points by themselves.
+- Current exact URL matches from a trusted provider or local feed can reach `MALICIOUS`. Registration age, IP reputation, lexical features and submitted artifact behavior are capped below that threshold.
+- The rule engine counts each rule once and caps related evidence. The evidence score measures weighted findings on a 0–100 scale. Source coverage determines how to read low scores. An ordinary password field, a normal email link and pasted authentication claims contribute no risk points by themselves.
 - Shared-hosting tenant creation time differs from provider-domain registration age. The results flag known shared hosting, and an exact URL match can still raise the score.
 
 Run the offline scoring benchmark with `python -m scripts.evaluate_rules`. It reports triage precision, recall and fixture-level errors. These fixtures are synthetic and do not establish production accuracy.
@@ -94,8 +94,10 @@ Set `PHISHMATRIX_INTEL_FILE=intel-snapshot.json`. The import script replaces the
 
 ### Reading the verdict
 
-- **Inconclusive** means the available sources do not cover the submitted indicator well enough to report a negative result. A registration date, host-level no-match, dataset model or missing key cannot clear a URL path.
+- **Inconclusive** means the available sources do not cover the submitted indicator well enough to report a negative result. The console still shows the observed score, including zero. A registration date, host-level no-match, dataset model or missing key cannot clear a URL path. Client-side URL fragments are outside provider coverage.
+- **Known trusted domain** (`TRUSTED_ROOT`) applies to an exact allowlisted HTTPS root with registration confirmed older than 30 days and no local findings. Paths, queries, fragments, other hosts and offline scans are outside this shortcut. Set `PHISHMATRIX_INCLUDE_ALLOWLIST=1` to run external reputation checks for these roots too.
 - **No match found** means Google Web Risk returned no listing for the precise URL sent, or a completed IP reputation lookup returned no match for a bare IP. The browser shows the completed source. The API keeps the legacy `CLEAN` enum.
+- **Weak signals** (`LOW_SIGNAL`) means the scan returned 1–24 evidence points alongside a completed negative source check. Review the positive findings and the scope of the negative result.
 - **Suspicious** includes an exact match in the bundled historical Kaggle index. The index uses the archived 2021 [Malicious URLs dataset](https://www.kaggle.com/datasets/sid321axn/malicious-urls-dataset), which Kaggle lists as CC0. It stores 211,288 hashed URL records with phishing, malware or defacement labels. Matching is URL-specific, including path and query. An absent scheme in the source record is matched across HTTP and HTTPS. Historical evidence alone scores 30 and never constitutes current malicious activity.
 - **Malicious** can follow a current positive exact-URL lookup. Web Risk needs permission for the API key. URLhaus exact lookup covers malware URLs and needs `ABUSECH_AUTH_KEY` plus `PHISHMATRIX_URLHAUS_PATH_SHARE=1`. URLhaus skips URLs with queries. Enable sharing only where submitted paths can be shared with the provider.
 
