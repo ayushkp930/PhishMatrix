@@ -13,7 +13,8 @@ from app.dataset_model import dataset_context
 from app.engines.analyst import summarize
 from app.engines.legacy_intel import NAMES as LEGACY_PROVIDER_NAMES
 from app.engines.dom_hunter import inspect_html
-from app.engines.forensics import lookup_whois_rdap
+from app.engines.forensics import lookup_whois_rdap, unknown_registration
+from app.engines.provider_http import bounded_lookup
 from app.engines.heuristics import lexical_findings
 from app.engines.soc_generator import case_exports
 from app.engines.threat_intel import query_all_threat_feeds
@@ -23,7 +24,7 @@ from app.scoring import VERSION, assess, finding
 from app.security import defang_ioc, normalize_target
 from app.whitelist import is_whitelisted_domain
 
-PROVIDER_NAMES = {"virustotal": "VirusTotal", "abuseipdb": "AbuseIPDB", "threatfox": "ThreatFox", "urlhaus": "URLhaus · host", "urlhaus_url": "URLhaus · URL", **LEGACY_PROVIDER_NAMES}
+PROVIDER_NAMES = {"extended": "Additional providers", "reputation": "External reputation", "virustotal": "VirusTotal", "abuseipdb": "AbuseIPDB", "threatfox": "ThreatFox", "urlhaus": "URLhaus · host", "urlhaus_url": "URLhaus · URL", **LEGACY_PROVIDER_NAMES}
 IP_REPUTATION_SOURCES = {"virustotal", "abuseipdb"}
 
 
@@ -89,11 +90,15 @@ def reputation_coverage(target: dict, feeds: dict, allowlisted: bool) -> dict:
     return {"scope": scope, "negative_sources": sources, "sufficient_for_no_match": bool(sources), "detail": note}
 
 
-async def investigate_target(raw_input: str) -> dict:
+async def investigate_target(raw_input: str, *, offline: bool = False) -> dict:
     started = time.monotonic()
     resolve = os.getenv("PHISHMATRIX_DNS_LOOKUPS") == "1"
-    if resolve:
-        target = await asyncio.wait_for(asyncio.to_thread(normalize_target, raw_input), 3.0)
+    if resolve and not offline:
+        try:
+            target = await asyncio.wait_for(asyncio.to_thread(normalize_target, raw_input), 3.0)
+        except TimeoutError:
+            target = normalize_target(raw_input, resolve=False)
+            offline = True
     else:
         target = normalize_target(raw_input, resolve=False)
     url, domain, ip = target["url"], target["domain"], target["resolved_ip"]
@@ -114,21 +119,25 @@ async def investigate_target(raw_input: str) -> dict:
         findings.append(finding(identifier, hit["source"], f"Exact {hit['scope']} match. Valid until {hit['expires_at']}."))
     is_allowlist_candidate = not findings and is_whitelisted_domain(domain, url)
 
-    async with httpx.AsyncClient(timeout=3.0, follow_redirects=False) as client:
-        if is_allowlist_candidate:
-            whois = await lookup_whois_rdap(client, domain)
-            allowlisted = whois["registration_status"] == "confirmed" and whois["is_newly_registered"] is False
-            if allowlisted and os.getenv("PHISHMATRIX_INCLUDE_ALLOWLIST") != "1":
-                feeds = {}
+    allowlisted = False
+    whois = unknown_registration(domain)
+    feeds = {}
+    if not offline:
+        async with httpx.AsyncClient(timeout=3.0, follow_redirects=False) as client:
+            registration = bounded_lookup(lookup_whois_rdap(client, domain), whois, seconds=6.5)
+
+            def reputation():
+                return bounded_lookup(query_all_threat_feeds(client, url, domain, ip),
+                                      {"reputation": {"status": "Unavailable", "scope": "unknown"}}, seconds=6)
+
+            if is_allowlist_candidate:
+                whois = await registration
+                allowlisted = (whois["registration_status"] == "confirmed" and whois["is_newly_registered"] is False
+                               and os.getenv("PHISHMATRIX_INCLUDE_ALLOWLIST") != "1")
+                if not allowlisted:
+                    feeds = await reputation()
             else:
-                allowlisted = False
-                feeds = await query_all_threat_feeds(client, url, domain, ip)
-        else:
-            allowlisted = False
-            whois, feeds = await asyncio.gather(
-                lookup_whois_rdap(client, domain),
-                query_all_threat_feeds(client, url, domain, ip),
-            )
+                whois, feeds = await asyncio.gather(registration, reputation())
 
     if whois["is_newly_registered"]:
         identifier = "NRD_24H" if whois["is_registered_within_24h"] else "NRD_30D"
@@ -144,8 +153,12 @@ async def investigate_target(raw_input: str) -> dict:
     coverage = reputation_coverage(target, feeds, allowlisted)
     result = assess(findings, coverage_sufficient=coverage["sufficient_for_no_match"])
     verdict = result["verdict"]
-    async with httpx.AsyncClient(timeout=1.8, follow_redirects=False) as client:
-        analyst = await summarize(client, result)
+    analyst = {"providers": {}}
+    if not offline:
+        async with httpx.AsyncClient(timeout=1.8, follow_redirects=False) as client:
+            analyst = await bounded_lookup(summarize(client, result), {"providers": {"Summary": "Unavailable"}}, seconds=5)
+    else:
+        coverage["detail"] = "Offline analysis used local URL rules and available IOC indexes. Live reputation and registration were skipped."
     case_id = str(uuid4())
     timestamp = datetime.now(timezone.utc).isoformat()
     providers = {PROVIDER_NAMES[name]: feed for name, feed in feeds.items()}
@@ -153,6 +166,9 @@ async def investigate_target(raw_input: str) -> dict:
     providers["Kaggle historical index"] = historical
     providers["Local IOC index"] = {"status": snapshot["status"], "snapshot_at": snapshot.get("snapshot_at")}
     providers["RDAP / WHOIS"] = {"status": {"confirmed": "Confirmed", "unavailable": "Unavailable", "not_applicable": "Not applicable"}[whois["registration_status"]]}
+    if offline:
+        providers["External reputation"] = {"status": "Offline"}
+        providers["RDAP / WHOIS"] = {"status": "Offline"}
     return {
         **result,
         "case_id": case_id,
@@ -174,9 +190,9 @@ async def investigate_target(raw_input: str) -> dict:
         "scan_metadata": {
             "scan_duration_ms": round((time.monotonic() - started) * 1000),
             "engine_version": VERSION,
-            "mode": "passive",
+            "mode": "offline" if offline else "passive",
             "whitelist_fast_path": allowlisted,
-            "api_credits_used": 0 if allowlisted else None,
+            "api_credits_used": 0 if allowlisted or offline else None,
         },
         "engines": feeds,
         "recommendations": recommendations(verdict),

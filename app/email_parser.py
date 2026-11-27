@@ -7,7 +7,7 @@ from email.utils import parseaddr
 
 from bs4 import BeautifulSoup
 
-from app.engines.dom_hunter import domain_key, link_mismatches
+from app.engines.dom_hunter import domain_key, inspect_html
 from app.scoring import assess, finding
 from app.security import defang_ioc, normalize_target, printable
 
@@ -33,6 +33,7 @@ def analyze_raw_email(raw_email: str) -> dict:
 
     links = set()
     display_mismatches = 0
+    embedded_behaviors = set()
     attachments = []
     attachment_rules = set()
     for part in list(msg.walk())[:50]:
@@ -55,7 +56,9 @@ def analyze_raw_email(raw_email: str) -> dict:
             continue
         if part.get_content_type() == "text/html":
             soup = BeautifulSoup(text, "html.parser")
-            display_mismatches += link_mismatches(soup)
+            page, behaviors = inspect_html(text)
+            display_mismatches += page["link_mismatches"]
+            embedded_behaviors.update(item.rule_id for item in behaviors if item.rule_id != "HTML_LINK_MISMATCH")
             links.update(str(a["href"]) for a in soup.find_all("a", href=True, limit=50))
         else:
             links.update(URL_PATTERN.findall(text)[:50])
@@ -79,6 +82,7 @@ def analyze_raw_email(raw_email: str) -> dict:
         finding(rule, "Submitted email", "Matched attachment filename metadata. File contents were not opened.")
         for rule in sorted(attachment_rules)
     ]
+    findings.extend(finding(rule, "Submitted email HTML", "Observed in the inert HTML MIME body.") for rule in sorted(embedded_behaviors))
     if from_domain and reply_domain and from_domain != reply_domain:
         findings.append(finding("EMAIL_REPLY_TO", "Submitted email", f"Sender domain {from_domain} differs from Reply-To domain {reply_domain}."))
     if from_domain and envelope_domain and from_domain != envelope_domain:

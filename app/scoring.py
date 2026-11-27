@@ -2,7 +2,7 @@
 
 from dataclasses import asdict, dataclass
 
-VERSION = "7.4"
+VERSION = "7.5"
 RULES = {
     "NRD_24H": ("New domain · under 24 hours", "registration", 40, "T1583.001"),
     "NRD_30D": ("New domain · up to 30 days", "registration", 35, "T1583.001"),
@@ -20,7 +20,9 @@ RULES = {
     "TI_DOMAIN": ("Domain reputation match", "domain_reputation", 35, None),
     "TI_IP": ("IP reputation match", "infrastructure", 12, None),
     "HTML_CROSS_ORIGIN_FORM": ("Credential form posts to a different domain", "artifact", 45, "T1056"),
-    "HTML_CLIPBOARD_EXEC": ("Clipboard automation and command instructions", "artifact", 75, "T1204.004"),
+    "HTML_CLIPBOARD_CONTEXT": ("Clipboard and command guidance present", "artifact", 0, None),
+    "HTML_SUBMIT_OVERRIDE": ("Submit control changes credential destination", "artifact", 45, "T1056"),
+    "HTML_CLIPBOARD_EXEC": ("Verification prompt copies a shell command", "artifact", 55, "T1204.004"),
     "HTML_LINK_MISMATCH": ("Displayed domain differs from link destination", "artifact", 28, "T1566.002"),
     "HTML_WEBHOOK_FORM": ("Credential form posts to a messaging endpoint", "artifact", 55, "T1056"),
     "HTML_INSECURE_PASSWORD": ("Password submitted over HTTP", "artifact", 25, None),
@@ -28,7 +30,7 @@ RULES = {
     "EMAIL_DOUBLE_EXTENSION": ("Attachment has a misleading double extension", "attachment", 34, "T1036.007"),
     "EMAIL_ACTIVE_ATTACHMENT": ("Attachment name has an executable or script extension", "attachment", 25, "T1566.001"),
     "EMAIL_REPLY_TO": ("Reply-To uses a different domain", "email", 18, None),
-    "EMAIL_ENVELOPE": ("From differs from envelope domain", "email", 8, None),
+    "EMAIL_ENVELOPE": ("From differs from envelope domain", "email", 0, None),
     "EMAIL_LINK_MISMATCH": ("Email link label differs from destination", "email", 28, "T1566.002"),
     "EMAIL_AUTH_CLAIM": ("Authentication-Results contains a failure claim", "email", 0, None),
 }
@@ -68,7 +70,7 @@ def assess(findings: list[Finding], *, coverage_sufficient: bool) -> dict:
         _, category, points, _ = RULES[rule_id]
         totals[category] = min(CAPS[category], totals.get(category, 0) + points)
     totals = {category: points for category, points in totals.items() if points}
-    strong = bool(rule_ids & {"TI_URL_EXACT", "HTML_CLIPBOARD_EXEC"})
+    strong = bool(rule_ids & {"TI_URL_EXACT"})
     contributed = sum(totals.values())
     score = min(100 if strong else 69, contributed)
     verdict = (

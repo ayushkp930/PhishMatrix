@@ -254,3 +254,6 @@ input, textarea, select { background: var(--surface); border-color: #3a424d; }
 .model-context > div { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
 .model-context h3 { font-size: .91rem; margin: 0; }
 .model-context p { color: var(--dim); margin-top: 4px; font-size: .82rem; }
+
+#offline-option { display: flex; align-items: center; gap: .55rem; margin-block: .7rem; }
+#offline-mode { width: auto; accent-color: var(--cyan); }

@@ -7,7 +7,7 @@ from ipaddress import ip_address
 import httpx
 
 from app.engines.legacy_intel import additional_lookups
-from app.engines.provider_http import failure, provider, request_json
+from app.engines.provider_http import bounded_lookup, failure, provider, request_json
 
 async def virustotal(client: httpx.AsyncClient, domain: str, is_ip: bool) -> dict:
     key = os.getenv("VT_API_KEY", "").strip()
@@ -128,12 +128,15 @@ async def query_all_threat_feeds(client: httpx.AsyncClient, url: str, domain: st
         scope = "ip"
     except ValueError:
         scope = "domain"
-    vt, abuse, fox, haus, exact, extra = await asyncio.gather(
-        virustotal(client, domain, scope == "ip"),
-        abuseipdb(client, ip),
-        threatfox(client, domain, scope),
-        urlhaus(client, domain, scope),
-        urlhaus_url(client, url),
-        additional_lookups(client, url, domain, ip, scope),
-    )
-    return {"virustotal": vt, "abuseipdb": abuse, "threatfox": fox, "urlhaus": haus, "urlhaus_url": exact, **extra}
+    jobs = {
+        "virustotal": (virustotal(client, domain, scope == "ip"), scope),
+        "abuseipdb": (abuseipdb(client, ip), "ip"),
+        "threatfox": (threatfox(client, domain, scope), scope),
+        "urlhaus": (urlhaus(client, domain, scope), scope),
+        "urlhaus_url": (urlhaus_url(client, url), "url"),
+    }
+    isolated = [bounded_lookup(job, provider("Unavailable", scope=kind)) for job, kind in jobs.values()]
+    extended = bounded_lookup(additional_lookups(client, url, domain, ip, scope),
+                              {"extended": provider("Unavailable", scope=scope)}, seconds=5.5)
+    *core, extra = await asyncio.gather(*isolated, extended)
+    return {**dict(zip(jobs, core, strict=True)), **extra}

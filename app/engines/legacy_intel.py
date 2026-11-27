@@ -13,7 +13,7 @@ import dns.exception
 import dns.resolver
 import httpx
 
-from app.engines.provider_http import failure, provider, request_json
+from app.engines.provider_http import bounded_lookup, failure, provider, request_json
 
 LOOKUP_ERRORS = (httpx.HTTPError, TimeoutError, TypeError, KeyError, ValueError, AttributeError, RecursionError)
 HASH = re.compile(r"(?:[a-f0-9]{32}|[a-f0-9]{40}|[a-f0-9]{64})")
@@ -259,5 +259,7 @@ async def additional_lookups(client, url, host, ip, scope):
         if key := secret("ip_api"):
             jobs["ip_api"] = lookup(client, f"https://pro.ip-api.com/json/{ip}", "ip", parse_ip_api,
                                     params={"key": key, "fields": "status,proxy,hosting"})
-    results.update(zip(jobs, await asyncio.gather(*jobs.values()), strict=True))
+    isolated = [bounded_lookup(job, provider("Unavailable", scope=results.get(name, {}).get("scope", scope)))
+                for name, job in jobs.items()]
+    results.update(zip(jobs, await asyncio.gather(*isolated), strict=True))
     return results

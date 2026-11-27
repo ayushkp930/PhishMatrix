@@ -45,6 +45,7 @@
           <label for="sample-text" id="sample-label" hidden>Sample</label>
           <textarea id="sample-text" name="sample" rows="5" spellcheck="false" hidden></textarea>
           <p id="input-help" class="input-help">Checks registration and reputation without opening the submitted page.</p>
+          <label id="offline-option"><input id="offline-mode" type="checkbox"> Analyze offline with local evidence only</label>
           <div class="scan-actions"><button type="submit" class="button primary" id="run">Analyze <span aria-hidden="true">→</span></button><span id="scan-status" role="status"></span></div>
         </form>
         <div id="scan-error" class="scan-error" role="alert" hidden></div>
@@ -82,6 +83,7 @@
     <section id="rules" class="card panel bottom-panel">
       <div class="section-head wrap"><div><h2>SOC rule library</h2><p>Hunting templates and detection rule catalogue</p></div><div class="button-row"><button class="button secondary" type="button" id="toggle-rules" aria-expanded="false" aria-controls="catalogue">Rule catalogue</button><button class="button secondary" type="button" id="download-case" disabled>Export case JSON</button><button class="button secondary" type="button" id="download-siem" disabled>Export SIEM event</button></div></div>
       <div id="rule-picker" hidden><label for="rule-select">Hunting template</label><div class="copy-row"><select id="rule-select"></select><button class="button secondary" type="button" id="copy-rule">Copy rule</button></div><p id="rule-scope"></p><pre id="rule-text"></pre></div>
+      <a class="button secondary" href="/api/v1/rules/pack.zip" download>Download Sigma and YARA pack</a>
       <div id="catalogue" hidden aria-live="polite"></div>
     </section>
     <section id="activity" class="card panel bottom-panel">
