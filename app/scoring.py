@@ -2,7 +2,7 @@
 
 from dataclasses import asdict, dataclass
 
-VERSION = "7.5"
+VERSION = "7.6"
 RULES = {
     "NRD_24H": ("New domain · under 24 hours", "registration", 40, "T1583.001"),
     "NRD_30D": ("New domain · up to 30 days", "registration", 35, "T1583.001"),
@@ -57,7 +57,7 @@ def catalogue() -> list[dict]:
     return [asdict(finding(rule_id, "", "")) for rule_id in RULES]
 
 
-def assess(findings: list[Finding], *, coverage_sufficient: bool) -> dict:
+def assess(findings: list[Finding], *, coverage_sufficient: bool, trusted_root: bool = False) -> dict:
     observed: dict[tuple[str, str], Finding] = {}
     for match in findings:
         observed.setdefault((match.rule_id, match.source), match)
@@ -76,7 +76,9 @@ def assess(findings: list[Finding], *, coverage_sufficient: bool) -> dict:
     verdict = (
         "MALICIOUS" if score >= 70 else
         "SUSPICIOUS" if score >= 25 else
-        "CLEAN" if coverage_sufficient else "INCONCLUSIVE"
+        "INCONCLUSIVE" if not coverage_sufficient and not (trusted_root and score == 0) else
+        "LOW_SIGNAL" if score else
+        "TRUSTED_ROOT" if trusted_root else "CLEAN"
     )
     return {
         "risk_score": score,

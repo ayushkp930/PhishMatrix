@@ -119,6 +119,7 @@ def normalize_target(raw_input: str, *, resolve: bool = True) -> dict:
         "domain": domain,
         "path": parsed.path or "/",
         "query": parsed.query,
+        "has_fragment": bool(parsed.fragment),
         "resolved_ip": answers[0] if answers else None,
         "ssrf_blocked": False,
         "prompt_injection_attempted": False,
