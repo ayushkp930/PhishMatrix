@@ -1,4 +1,4 @@
-# PhishMatrix 7.7 · Investigation Console
+# PhishMatrix 7.7.1 · Investigation Console
 
 PhishMatrix is a FastAPI phishing triage tool for URLs, domains, IPs, submitted email and inert HTML samples. Each verdict includes the contributing detection rules and the status of the sources queried. The browser session can export case JSON with analyst notes and disposition. Individual investigations export a timestamped SIEM event with the same case ID as the report.
 
@@ -99,7 +99,7 @@ Set `PHISHMATRIX_INTEL_FILE=intel-snapshot.json`. The import script replaces the
 - **No match found** means Google Web Risk returned no listing for the precise URL sent, or a completed IP reputation lookup returned no match for a bare IP. The browser shows the completed source. The API keeps the legacy `CLEAN` enum.
 - **Weak signals** (`LOW_SIGNAL`) means the scan returned 1–24 evidence points alongside a completed negative source check. Review the positive findings and the scope of the negative result.
 - **Suspicious** includes an exact, uncontested historical phishing, malware or defacement match. The bundled index has 635,521 hashed URL records from the 2021 [Malicious URLs dataset](https://www.kaggle.com/datasets/sid321axn/malicious-urls-dataset), including benign entries. Matching is URL-specific, including path and query. Scheme-less rows match HTTP and HTTPS. Benign matches, conflicting labels and matches limited to the portion before a fragment are context only. A historical threat match contributes 30 points.
-- A recent URLScan malicious verdict contributes 40 points for an exact final page seen in the last seven days. PhishMatrix searches an existing index by hostname and verifies the URL locally. It does not submit scans or use an empty result as coverage. [URLScan Search API reference](https://urlscan.io/docs/search/)
+- A recent URLScan malicious verdict contributes 40 points for an exact final page seen in the last seven days. PhishMatrix searches by hostname and verifies the most recent exact page in the read-only Result API. Empty searches are inconclusive. [URLScan Search API reference](https://urlscan.io/docs/search/)
 - **Malicious** can follow a current positive exact-URL lookup. Web Risk needs permission for the API key. URLhaus exact lookup covers malware URLs and needs `ABUSECH_AUTH_KEY` plus `PHISHMATRIX_URLHAUS_PATH_SHARE=1`. URLhaus skips URLs with queries. Enable sharing only where submitted paths can be shared with the provider.
 
 Rebuild the bundled index from the same Kaggle archive with `python -m scripts.build_historical_index malicious-urls-dataset.zip`. The index and Kaggle evaluation scripts never open their sample URLs.

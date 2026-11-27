@@ -8,6 +8,7 @@ from pathlib import Path
 from datetime import datetime, timedelta, timezone
 from ipaddress import IPv4Address
 from urllib.parse import urlsplit, urlunsplit
+from uuid import UUID
 
 import dns.asyncresolver
 import dns.exception
@@ -68,22 +69,52 @@ def parse_urlscan(data):
     return ("Observed" if results else "No record"), {"returned_results": len(results)}
 
 
-def parse_urlscan_malicious(data, url):
-    if not isinstance(data["results"], list):
-        raise ValueError()
+def exact_urlscan_time(row, url):
     now = datetime.now(timezone.utc)
-    for row in data["results"][:10]:
-        try:
-            scanned_at = datetime.fromisoformat(row["task"]["time"])
-            if not now - timedelta(days=7) <= scanned_at <= now:
-                continue
+    try:
+        scanned_at = datetime.fromisoformat(row["task"]["time"])
+        if now - timedelta(days=7) <= scanned_at <= now:
             # The verdict describes the final page. The requested URL may have redirected there.
             page = normalize_target(row["page"]["url"], resolve=False)
             if page["url"] == url and not page["has_fragment"]:
-                return "Recent malicious scan", {"observed_at": scanned_at.isoformat()}
-        except (KeyError, TypeError, ValueError, AttributeError):
-            continue
-    return "No exact recent observation", {}
+                return scanned_at
+    except (KeyError, TypeError, ValueError, AttributeError):
+        pass
+    return None
+
+
+def parse_urlscan_candidate(data, url):
+    if not isinstance(data["results"], list):
+        raise ValueError()
+    newest = None
+    candidate = None
+    for row in data["results"][:10]:
+        scanned_at = exact_urlscan_time(row, url)
+        if scanned_at and (newest is None or scanned_at > newest):
+            try:
+                candidate = str(UUID(row["task"]["uuid"]))
+                newest = scanned_at
+            except (KeyError, ValueError, TypeError, AttributeError):
+                continue
+    return ("Candidate", {"scan_id": candidate}) if candidate else ("No exact recent observation", {})
+
+
+async def urlscan_recent_lookup(client, key, host, url):
+    headers = {"api-key": key}
+    search = await lookup(client, "https://urlscan.io/api/v1/search/", "url", lambda data: parse_urlscan_candidate(data, url),
+                          headers=headers, params={"q": f'page.domain:"{host}"', "size": 10}, timeout=1.8)
+    if search["status"] != "Candidate":
+        return search
+
+    def parse_result(data):
+        observed_at = exact_urlscan_time(data, url)
+        malicious = data.get("verdicts", {}).get("urlscan", {}).get("malicious")
+        if observed_at and malicious is True:
+            return "Recent malicious scan", {"observed_at": observed_at.isoformat()}
+        return "No exact malicious verdict", {}
+
+    return await lookup(client, f'https://urlscan.io/api/v1/result/{search["scan_id"]}/', "url", parse_result,
+                        headers=headers, timeout=1.8)
 
 
 def parse_otx(data):
@@ -240,10 +271,7 @@ async def additional_lookups(client, url, host, ip, scope):
             jobs["urlscan"] = lookup(client, "https://urlscan.io/api/v1/search/", scope, parse_urlscan,
                                      headers={"api-key": key}, params={"q": f'page.domain:"{host}"', "size": 5})
             results["urlscan_malicious"] = provider("Unavailable", scope="url")
-            jobs["urlscan_malicious"] = lookup(
-                client, "https://urlscan.io/api/v1/search/", "url", lambda data: parse_urlscan_malicious(data, url),
-                headers={"api-key": key}, params={"q": f'page.domain:"{host}" AND verdicts.urlscan.malicious:true AND date:>now-7d', "size": 10},
-            )
+            jobs["urlscan_malicious"] = urlscan_recent_lookup(client, key, host, url)
         else:
             jobs["urlscan"] = lookup(client, "https://urlscan.io/api/v1/search/", scope, parse_urlscan,
                                      headers={"api-key": key}, params={"q": f'page.ip:"{host}"', "size": 5})

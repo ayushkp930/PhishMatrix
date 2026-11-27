@@ -106,24 +106,36 @@ def test_webrisk_status_and_opt_in_path(keys, monkeypatch):
 def test_urlscan_matches_recent_final_url_without_sending_the_path(keys):
     url = "https://example.com/private-path?token=local"
     now = datetime.now(timezone.utc) - timedelta(minutes=1)
+    scan_id = "02dbf9e9-53a4-4f2e-8a84-6faf3b94f8f0"
+    result_urls = []
+    result = {"malicious": False}
 
-    def hit(page, *, timestamp=now):
-        return {"task": {"time": timestamp.isoformat(), "url": url}, "page": {"url": page}}
+    def hit(page, *, timestamp=now, identifier=scan_id):
+        return {"task": {"time": timestamp.isoformat(), "url": url, "uuid": identifier}, "page": {"url": page}}
 
-    unrelated = [hit(url, timestamp=now - timedelta(days=8)), hit(url.replace("private", "other")), hit(url + "#other")]
+    unrelated = [hit(url, timestamp=now - timedelta(days=8)), hit(url.replace("private", "other")),
+                 hit(url + "#other"), hit(url, identifier="untrusted-route")]
 
     def route(request):
         assert "private-path" not in str(request.url) and "token" not in str(request.url)
-        query = request.url.params.get("q", "")
-        if "verdicts.urlscan.malicious:true" not in query:
+        if request.url.path == f"/api/v1/result/{scan_id}/":
+            result_urls.append(str(request.url))
+            return httpx.Response(200, json={**hit(url), "verdicts": {"urlscan": result}})
+        if request.url.params.get("size") != "10":
             return httpx.Response(200, json={"results": []})
+        assert request.url.params["q"] == 'page.domain:"example.com"'
         return httpx.Response(200, json={"results": unrelated})
 
     absent = perform(route, lambda c: additional_lookups(c, url, "example.com", None, "domain"))
     assert absent["urlscan_malicious"]["status"] == "No exact recent observation"
+    assert not result_urls
     unrelated.append(hit(url))
+    safe = perform(route, lambda c: additional_lookups(c, url, "example.com", None, "domain"))
+    assert safe["urlscan_malicious"]["status"] == "No exact malicious verdict"
+    result["malicious"] = True
     found = perform(route, lambda c: additional_lookups(c, url, "example.com", None, "domain"))
     assert found["urlscan_malicious"] == {"status": "Recent malicious scan", "scope": "url", "observed_at": now.isoformat()}
+    assert len(result_urls) == 2
 
 
 def test_fixed_connectors_do_not_follow_redirects():
