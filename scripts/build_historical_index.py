@@ -5,12 +5,11 @@ import csv
 from collections import Counter, defaultdict
 from pathlib import Path
 
-from app.historical_intel import INDEX_PATH, LABELS, url_digest
+from app.historical_intel import BENIGN, INDEX_PATH, LABELS, url_digest
 from app.security import normalize_target
 from scripts.evaluate_datasets import open_csv
 
 MASKS = {name: bit for bit, name in LABELS.items()}
-BENIGN = 8
 
 
 def build_index(path: Path) -> tuple[bytes, Counter]:
@@ -37,10 +36,8 @@ def build_index(path: Path) -> tuple[bytes, Counter]:
             counts[kind] += 1
     output = bytearray()
     for key, flags in sorted(records.items()):
-        if flags & BENIGN:
-            if flags != BENIGN:
-                counts["conflicting_keys_omitted"] += 1
-            continue
+        if flags & BENIGN and flags != BENIGN:
+            counts["conflicting_keys_retained"] += 1
         output.extend(key)
         output.append(flags)
         counts["historical_records"] += 1
