@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import time
+from base64 import b64encode
 from datetime import datetime, timezone
 from pathlib import Path
 from hashlib import sha256
@@ -20,6 +21,7 @@ from app.engines.rule_pack import build_pack
 from app.engines.soc_generator import case_exports
 from app.engines.legacy_intel import malshare_lookup
 from app.email_parser import analyze_raw_email
+from app.email_report import build_email_pdf
 from app.middleware import WorkbenchMiddleware
 from app.orchestrator import investigate_html, investigate_target
 from app.scoring import VERSION, catalogue, assess, finding
@@ -61,6 +63,7 @@ class EmailScanRequest(BaseModel):
     raw_email: Text | None = None
     email: Text | None = None
     email_content: Text | None = None
+    include_pdf: bool = False
 
 
 class HtmlScanRequest(BaseModel):
@@ -176,12 +179,16 @@ async def api_scan_email(req: EmailScanRequest):
     result = await asyncio.to_thread(analyze_raw_email, raw)
     case_id = str(uuid4())
     timestamp = datetime.now(timezone.utc).isoformat()
-    return {
+    case = {
         **result,
         "case_id": case_id, "timestamp": timestamp, "kind": "email",
         **case_exports(case_id, timestamp, result, "email", digest=sha256(raw.encode("utf-8")).hexdigest()),
         "scan_metadata": {"mode": "offline", "scan_duration_ms": round((time.monotonic() - started) * 1000)},
     }
+    if req.include_pdf:
+        pdf = await asyncio.to_thread(build_email_pdf, case)
+        case["report_pdf"] = b64encode(pdf).decode("ascii")
+    return case
 
 
 @app.post("/api/v1/html-scan")
