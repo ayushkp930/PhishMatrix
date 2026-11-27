@@ -160,32 +160,11 @@ function renderEvidence(result) {
   byId('evidence-empty').hidden = Boolean(list.children.length);
   byId('evidence-empty').textContent = rows.length ? 'No findings match this filter.' : result?.kind === 'hash' ? result.executive_summary : result ? 'The available checks returned no findings.' : 'Findings appear when the investigation returns evidence.';
 
-  const providerList = byId('providers');
-  providerList.replaceChildren();
-  for (const [name, record] of Object.entries(result?.providers || {})) {
-    const item = node('li');
-    const state = node('span', record.status, 'pill');
-    if (['Match', 'Historical match', 'Unavailable', 'Stale or empty', 'Auth rejected', 'Access denied', 'Rate limited'].includes(record.status)) state.dataset.state = 'warning';
-    else if (['Confirmed', 'No match', 'No active match'].includes(record.status)) state.dataset.state = 'positive';
-    item.append(node('strong', name), state);
-    providerList.append(item);
-  }
-  byId('providers-empty').hidden = Boolean(providerList.children.length);
-  byId('providers-empty').textContent = result?.kind === 'html' || result?.kind === 'email'
-    ? 'This artifact was analyzed offline. No external sources were queried.'
-    : 'Registration and reputation sources show here after a URL scan.';
-
   const advisory = result?.ai_advisory;
   byId('analyst-advisory').hidden = !advisory;
   if (advisory) {
     byId('advisory-source').textContent = advisory.source;
     byId('advisory-text').textContent = advisory.text;
-  }
-  const model = result?.dataset_model;
-  byId('dataset-model').hidden = !model;
-  if (model) {
-    byId('model-score').textContent = model.flagged ? 'Elevated' : 'Below threshold';
-    byId('model-detail').textContent = `Model signal ${Math.round(model.score * 100)}/100 · context only`;
   }
   const contributions = Object.entries(result?.contributions || {});
   byId('breakdown').hidden = !contributions.length;
