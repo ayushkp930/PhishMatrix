@@ -121,14 +121,14 @@ def registrable_domain(hostname: str) -> str:
     return PUBLIC_SUFFIXES(hostname).top_domain_under_public_suffix
 
 
-async def lookup_whois_rdap(client: httpx.AsyncClient, domain: str) -> dict:
+def unknown_registration(domain: str) -> dict:
     root = registrable_domain(domain)
     try:
         ip_address(domain)
         status = "not_applicable"
     except ValueError:
         status = "unavailable"
-    registration = {
+    return {
         "queried_domain": root or domain,
         "registrar": "Unknown",
         "creation_date": "Not applicable" if status == "not_applicable" else "Unknown",
@@ -142,6 +142,11 @@ async def lookup_whois_rdap(client: httpx.AsyncClient, domain: str) -> dict:
         "abuse_contact": None,
         "nameservers": [],
     }
+
+
+async def lookup_whois_rdap(client: httpx.AsyncClient, domain: str) -> dict:
+    root = registrable_domain(domain)
+    registration = unknown_registration(domain)
     if not root:
         return registration
 

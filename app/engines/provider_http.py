@@ -45,3 +45,12 @@ def failure(status: int) -> str:
 
 def provider(status: str, *, scope: str, **data) -> dict:
     return {"status": status, "scope": scope, **data}
+
+async def bounded_lookup(operation, fallback, *, seconds=5):
+    """Isolate optional enrichment failures. Cancellation from the caller still propagates."""
+    try:
+        async with asyncio.timeout(seconds):
+            return await operation
+    except Exception:
+        # Exception messages from HTTP clients can contain credential-bearing URLs.
+        return fallback

@@ -84,7 +84,7 @@ def lexical_findings(host: str, path: str, query: str) -> list[Finding]:
         if len(brand) >= 5 and one_edit_away(label, brand):
             findings.append(finding("BRAND_LOOKALIKE", "URL heuristic", f"The registered label resembles {brand}."))
             break
-        if re.search(rf"\b{brand}\b", lure_text) and re.search(LURES, lure_text):
+        if re.search(rf"\b{brand}\b", host.replace("_", "-")) and re.search(LURES, lure_text):
             findings.append(finding("BRAND_LURE", "URL heuristic", f"{brand} appears alongside a credential or payment lure."))
             break
     return findings

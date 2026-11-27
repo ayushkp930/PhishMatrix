@@ -77,7 +77,7 @@ def case_exports(case_id, timestamp, result, kind, *, host=None, digest=None):
         "event": {"id": case_id, "kind": "alert" if verdict in {"MALICIOUS", "SUSPICIOUS"} else "event",
                   "category": ["threat"], "action": operation, "risk_score": result["risk_score"]},
         "observer": {"product": "PhishMatrix", "version": VERSION},
-        "phishmatrix": {"verdict": verdict, "rule_ids": rule_ids, "artifact_type": kind},
+        "phishmatrix": {"verdict": verdict, "rule_ids": rule_ids, "findings": {key: True for key in rule_ids}, "artifact_type": kind},
     }
     if host:
         try:

@@ -35,8 +35,20 @@ def link_mismatches(soup: BeautifulSoup) -> int:
     return count
 
 
+def control_enabled(control):
+    if control.has_attr("disabled"):
+        return False
+    for fieldset in control.find_parents("fieldset", disabled=True):
+        legend = fieldset.find("legend", recursive=False)
+        if legend is None or not any(parent is legend for parent in control.parents):
+            return False
+    return True
+
+
 def inspect_html(html: str, context_url: str | None = None) -> tuple[dict, list[Finding]]:
     soup = BeautifulSoup(html, "html.parser")
+    for inert in soup.find_all("template"):
+        inert.extract()
     page_title = printable(soup.title.get_text(" ", strip=True), 120) if soup.title else None
     findings = []
     matches = link_mismatches(soup)
@@ -56,8 +68,8 @@ def inspect_html(html: str, context_url: str | None = None) -> tuple[dict, list[
     form_count = 0
     for form in soup.find_all("form", limit=100):
         form_count += 1
-        password = form.find("input", attrs={"type": re.compile("^password$", re.I)})
-        if not password:
+        passwords = form.find_all("input", attrs={"type": re.compile("^password$", re.I)})
+        if not any(control_enabled(field) and field.get("form", form.get("id")) == form.get("id") for field in passwords):
             continue
         has_password_form = True
         try:
@@ -66,7 +78,22 @@ def inspect_html(html: str, context_url: str | None = None) -> tuple[dict, list[
             host = action.hostname
         except ValueError:
             continue
-        if not host:
+        for button in form.find_all(["button", "input"], formaction=True, limit=50):
+            default_type = "submit" if button.name == "button" else "text"
+            if (not control_enabled(button) or button.get("type", default_type).lower() not in {"submit", "image"}
+                    or button.get("form", form.get("id")) != form.get("id")
+                    or button.get("formmethod", form.get("method", "get")).lower() == "dialog"):
+                continue
+            try:
+                override = urlsplit(urljoin(document_base, button["formaction"]))
+                if (context_host and override.scheme in {"http", "https"} and override.hostname
+                        and domain_key(override.hostname) != domain_key(context_host)
+                        and (not host or domain_key(override.hostname) != domain_key(host))):
+                    findings.append(finding("HTML_SUBMIT_OVERRIDE", "Submitted HTML", "A submit control routes the credential form to another site."))
+                    break
+            except ValueError:
+                continue
+        if not host or action.scheme not in {"http", "https"} or form.get("method", "").lower() == "dialog":
             continue
         target = domain_key(host)
         if (host == "api.telegram.org" and action.path.startswith("/bot")) or (
@@ -79,15 +106,29 @@ def inspect_html(html: str, context_url: str | None = None) -> tuple[dict, list[
             findings.append(finding(rule, "Submitted HTML", f"A password form submits to {target}."))
         if action.scheme == "http":
             findings.append(finding("HTML_INSECURE_PASSWORD", "Submitted HTML", "The form destination uses unencrypted HTTP."))
-    prompt = re.search(r"\b(?:win(?:dows)?\s*\+\s*r|paste\s+(?:the\s+)?command)\b", soup.get_text(" ", strip=True), re.I)
-    clipboard_script = False
-    for tag in soup.find_all("script", limit=100):
-        source = (tag.string or "").lower()
-        if re.search(r"""navigator\.clipboard\.writetext|execcommand\s*\(\s*['"]copy""", source) and re.search(r"\b(?:powershell|mshta|cmd\.exe)\b", source):
-            clipboard_script = True
-            break
-    if clipboard_script and prompt:
-        findings.append(finding("HTML_CLIPBOARD_EXEC", "Submitted HTML", "Clipboard write, a command shell cue and a run/paste instruction co-occur."))
+    visible = soup.get_text(" ", strip=True)
+    prompt = re.search(r"\b(?:win(?:dows)?\s*\+\s*r|paste\s+(?:the\s+)?command)\b", visible, re.I)
+    verification = re.search(r"\b(?:captcha|verify (?:that )?you(?: are|'re) human|human verification|verification step)\b", visible, re.I)
+    if prompt:
+        context_only = False
+        for tag in soup.find_all("script", limit=100):
+            if tag.get("src") or tag.get("type", "").lower().split(";")[0].strip() not in {
+                "", "module", "text/javascript", "application/javascript", "application/ecmascript", "text/ecmascript"
+            }:
+                continue
+            script = tag.string or ""
+            if not re.search(r"navigator\.clipboard\.writeText\s*\(|execCommand\s*\(\s*['\"]copy", script, re.I):
+                continue
+            if not re.search(r"\b(?:powershell|pwsh|mshta|cmd\.exe)\b", script, re.I):
+                continue
+            literal = re.search(r"""navigator\.clipboard\.writeText\s*\(\s*['"`]\s*(?:powershell|pwsh|mshta|cmd)(?:\.exe)?\s""", script, re.I)
+            if verification and literal:
+                findings.append(finding("HTML_CLIPBOARD_EXEC", "Submitted HTML", "Verification language, run/paste instructions and a clipboard call containing a shell command co-occur."))
+                break
+            context_only = True
+        else:
+            if context_only:
+                findings.append(finding("HTML_CLIPBOARD_CONTEXT", "Submitted HTML", "Clipboard and command cues require independent verification."))
     return {
         "page_title": page_title,
         "forms_inspected": form_count,
