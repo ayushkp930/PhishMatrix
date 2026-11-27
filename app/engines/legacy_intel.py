@@ -5,6 +5,7 @@ import os
 import re
 from functools import lru_cache
 from pathlib import Path
+from datetime import datetime, timedelta, timezone
 from ipaddress import IPv4Address
 from urllib.parse import urlsplit, urlunsplit
 
@@ -14,6 +15,7 @@ import dns.resolver
 import httpx
 
 from app.engines.provider_http import bounded_lookup, failure, provider, request_json
+from app.security import normalize_target
 
 LOOKUP_ERRORS = (httpx.HTTPError, TimeoutError, TypeError, KeyError, ValueError, AttributeError, RecursionError)
 HASH = re.compile(r"(?:[a-f0-9]{32}|[a-f0-9]{40}|[a-f0-9]{64})")
@@ -28,7 +30,7 @@ NAMES = {
     "pulsedive": "Pulsedive", "greynoise": "GreyNoise", "shodan": "Shodan",
     "malshare": "MalShare", "mailboxlayer": "Mailboxlayer", "httpbl": "Project Honey Pot",
     "ip_api": "IP-API Pro", "internetdb": "Shodan InternetDB", "crtsh": "Certificate Transparency",
-    "maltrail": "Maltrail", "hudsonrock": "Hudson Rock",
+    "maltrail": "Maltrail", "hudsonrock": "Hudson Rock", "urlscan_malicious": "URLScan · recent malicious scans",
 }
 
 
@@ -64,6 +66,24 @@ def parse_urlscan(data):
     if not isinstance(results, list):
         raise ValueError()
     return ("Observed" if results else "No record"), {"returned_results": len(results)}
+
+
+def parse_urlscan_malicious(data, url):
+    if not isinstance(data["results"], list):
+        raise ValueError()
+    now = datetime.now(timezone.utc)
+    for row in data["results"][:10]:
+        try:
+            scanned_at = datetime.fromisoformat(row["task"]["time"])
+            if not now - timedelta(days=7) <= scanned_at <= now:
+                continue
+            # The verdict describes the final page. The requested URL may have redirected there.
+            page = normalize_target(row["page"]["url"], resolve=False)
+            if page["url"] == url and not page["has_fragment"]:
+                return "Recent malicious scan", {"observed_at": scanned_at.isoformat()}
+        except (KeyError, TypeError, ValueError, AttributeError):
+            continue
+    return "No exact recent observation", {}
 
 
 def parse_otx(data):
@@ -219,6 +239,11 @@ async def additional_lookups(client, url, host, ip, scope):
         if scope == "domain":
             jobs["urlscan"] = lookup(client, "https://urlscan.io/api/v1/search/", scope, parse_urlscan,
                                      headers={"api-key": key}, params={"q": f'page.domain:"{host}"', "size": 5})
+            results["urlscan_malicious"] = provider("Unavailable", scope="url")
+            jobs["urlscan_malicious"] = lookup(
+                client, "https://urlscan.io/api/v1/search/", "url", lambda data: parse_urlscan_malicious(data, url),
+                headers={"api-key": key}, params={"q": f'page.domain:"{host}" AND verdicts.urlscan.malicious:true AND date:>now-7d', "size": 10},
+            )
         else:
             jobs["urlscan"] = lookup(client, "https://urlscan.io/api/v1/search/", scope, parse_urlscan,
                                      headers={"api-key": key}, params={"q": f'page.ip:"{host}"', "size": 5})

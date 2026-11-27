@@ -92,7 +92,7 @@ def reputation_coverage(target: dict, feeds: dict, allowlisted: bool) -> dict:
     elif target["has_fragment"]:
         note = "The client-side URL fragment was excluded from reputation checks."
     else:
-        note = f"No completed {scope.upper()}-level negative reputation check. Review source coverage below."
+        note = f"Live {scope.upper()} reputation was unverified. Source details are in the case export."
     return {"scope": scope, "negative_sources": sources, "sufficient_for_no_match": bool(sources),
             "trusted_root": allowlisted, "detail": note}
 
@@ -117,14 +117,25 @@ async def investigate_target(raw_input: str, *, offline: bool = False) -> dict:
     )
     if historical["labels"]:
         labels = ", ".join(historical["labels"])
+        rule = {
+            "Historical match": "TI_HISTORICAL_URL",
+            "Archived benign match": "TI_HISTORICAL_BENIGN",
+            "Conflicting archive labels": "TI_HISTORICAL_CONFLICT",
+        }[historical["status"]]
+        if target["has_fragment"]:
+            rule = "TI_HISTORICAL_FRAGMENT"
         findings.append(finding(
-            "TI_HISTORICAL_URL", HISTORICAL_SOURCE,
-            f"Archived URL label(s): {labels}. Current activity is unverified.",
+            rule, HISTORICAL_SOURCE,
+            f"Archived URL label(s): {labels}. Current activity is unverified."
+            + (" The archive lookup excluded the client-side fragment." if target["has_fragment"] else ""),
         ))
     for hit in snapshot["hits"]:
         identifier = {"url": "TI_URL_EXACT", "domain": "TI_DOMAIN", "ip": "TI_IP"}[hit["scope"]]
         findings.append(finding(identifier, hit["source"], f"Exact {hit['scope']} match. Valid until {hit['expires_at']}."))
-    is_allowlist_candidate = not findings and not target["has_fragment"] and is_whitelisted_domain(domain, url)
+    is_allowlist_candidate = (
+        all(item.rule_id == "TI_HISTORICAL_BENIGN" for item in findings)
+        and not target["has_fragment"] and is_whitelisted_domain(domain, url)
+    )
 
     allowlisted = False
     whois = unknown_registration(domain)
@@ -150,6 +161,9 @@ async def investigate_target(raw_input: str, *, offline: bool = False) -> dict:
         identifier = "NRD_24H" if whois["is_registered_within_24h"] else "NRD_30D"
         findings.append(finding(identifier, whois["registration_source"], f"{whois['queried_domain']} · {registration_label(whois)}"))
     for name, result in feeds.items():
+        if name == "urlscan_malicious" and result["status"] == "Recent malicious scan" and not target["has_fragment"]:
+            findings.append(finding("TI_URLSCAN_RECENT", PROVIDER_NAMES[name],
+                                    "URLScan reported a malicious verdict for this exact final URL in the last seven days."))
         if result["status"] != "Match":
             continue
         scope = result["scope"]
@@ -172,7 +186,12 @@ async def investigate_target(raw_input: str, *, offline: bool = False) -> dict:
     elif verdict == "LOW_SIGNAL":
         executive_summary = f"Findings below the alert threshold. {coverage['detail']}"
     elif verdict == "INCONCLUSIVE":
-        prefix = "Findings below the alert threshold." if result["risk_score"] else "No risk points from available checks."
+        if result["risk_score"]:
+            prefix = "Findings below the alert threshold."
+        elif historical["status"] == "Archived benign match" and not target["has_fragment"]:
+            prefix = "The exact URL was labeled benign in the archive."
+        else:
+            prefix = "No risk points from available checks."
         executive_summary = f"{prefix} {coverage['detail']}"
     else:
         executive_summary = coverage["detail"]

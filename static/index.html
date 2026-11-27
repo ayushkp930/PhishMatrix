@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="dark">
   <title>PhishMatrix · Investigation Console</title>
-  <link rel="stylesheet" href="/static/workbench.css">
-  <script src="/static/workbench.js?v=7.6" defer></script>
+  <link rel="stylesheet" href="/static/workbench.css?v=7.7">
+  <script src="/static/workbench.js?v=7.7" defer></script>
 </head>
 <body>
   <a class="skip" href="#investigate">Skip to investigation</a>
@@ -61,19 +61,14 @@
       <div class="card stat"><span>Evidence signals</span><strong id="signal-count">—</strong><small id="signal-detail">Scored and contextual findings</small></div>
       <div class="card stat"><span>Scan duration</span><strong id="duration">—</strong><small id="scan-mode">Latest investigation</small></div>
     </div>
-    <section id="evidence" class="evidence-grid" aria-label="Investigation evidence">
+    <section id="evidence" aria-label="Investigation evidence">
       <article class="card panel">
         <div class="section-head"><div><h2>Evidence timeline</h2><p>Findings and recommended actions</p></div><span id="evidence-total" class="pill">0 findings</span></div>
         <div class="evidence-tools" id="evidence-tools" hidden><label for="filter-evidence">Show</label><select id="filter-evidence"><option value="all">All findings</option><option value="scored">Scored findings</option><option value="context">Context only</option></select></div>
         <ul id="findings" class="findings"></ul><p id="evidence-empty" class="empty">Findings will appear here after a scan.</p>
         <div id="response-context" hidden></div><ul id="actions" class="actions" hidden></ul>
-      </article>
-      <article class="card panel coverage">
-        <div class="section-head"><div><h2>Intelligence coverage</h2><p>Status from each queried source</p></div></div>
-        <ul id="providers" class="providers" aria-live="polite"></ul><p id="providers-empty" class="empty">Registration and reputation sources appear after a URL scan.</p>
-        <div class="model-context" id="analyst-advisory" hidden><div><h3>AI advisory</h3><span class="pill" id="advisory-source"></span></div><p id="advisory-text"></p></div>
-        <div class="model-context" id="dataset-model" hidden><div><h3>Dataset model</h3><span class="pill" id="model-score"></span></div><p id="model-detail"></p></div>
         <div id="breakdown" hidden><h3>Score contributions</h3><ul id="score-rows" class="score-rows"></ul><p class="input-help" id="score-cap" hidden></p></div>
+        <div class="model-context" id="analyst-advisory" hidden><div><h3>AI advisory</h3><span class="pill" id="advisory-source"></span></div><p id="advisory-text"></p></div>
       </article>
     </section>
     <section id="case-notes" class="card panel bottom-panel" hidden>

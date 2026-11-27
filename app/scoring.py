@@ -2,7 +2,7 @@
 
 from dataclasses import asdict, dataclass
 
-VERSION = "7.6"
+VERSION = "7.7"
 RULES = {
     "NRD_24H": ("New domain · under 24 hours", "registration", 40, "T1583.001"),
     "NRD_30D": ("New domain · up to 30 days", "registration", 35, "T1583.001"),
@@ -14,9 +14,15 @@ RULES = {
     "HOSTED_TENANT": ("Shared hosting tenant", "lexical", 0, None),
     "URL_BRAND_SUBDOMAIN": ("Brand name in an unrelated subdomain", "lexical", 28, "T1566.002"),
     "URL_IP_LOGIN": ("Numeric address with a sign-in path", "lexical", 25, "T1566.002"),
+    "URL_OFFSITE_REDIRECT": ("Sign-in URL carries an off-site redirect destination", "lexical", 8, None),
+    "URL_SHARED_TENANT_LURE": ("Shared-hosting tenant name combines a brand and sign-in lure", "lexical", 26, "T1566.002"),
     "TI_HASH_LISTED": ("Exact hash listed in MalShare", "file_reputation", 35, None),
     "TI_URL_EXACT": ("Current exact URL reputation match", "url_reputation", 75, "T1566.002"),
+    "TI_URLSCAN_RECENT": ("Recent malicious scan of the exact URL", "url_reputation", 40, "T1566.002"),
     "TI_HISTORICAL_URL": ("Historical dataset URL match", "historical", 30, None),
+    "TI_HISTORICAL_BENIGN": ("Exact URL labeled benign in the historical dataset", "historical", 0, None),
+    "TI_HISTORICAL_CONFLICT": ("Exact URL has conflicting historical labels", "historical", 0, None),
+    "TI_HISTORICAL_FRAGMENT": ("Historical match for the URL without its fragment", "historical", 0, None),
     "TI_DOMAIN": ("Domain reputation match", "domain_reputation", 35, None),
     "TI_IP": ("IP reputation match", "infrastructure", 12, None),
     "HTML_CROSS_ORIGIN_FORM": ("Credential form posts to a different domain", "artifact", 45, "T1056"),
@@ -27,8 +33,14 @@ RULES = {
     "HTML_WEBHOOK_FORM": ("Credential form posts to a messaging endpoint", "artifact", 55, "T1056"),
     "HTML_INSECURE_PASSWORD": ("Password submitted over HTTP", "artifact", 25, None),
     "HTML_CREDENTIAL_FORM_REDIRECT": ("HTML base changes a credential form destination", "artifact", 45, "T1056"),
+    "HTML_PASSWORD_QUERY": ("Password form explicitly uses GET", "artifact", 18, None),
+    "HTML_PASSWORD_MAILTO": ("Credential form targets an email client", "artifact", 35, "T1056"),
+    "HTML_OTP_CROSS_ORIGIN": ("One-time code form posts to a different site", "artifact", 30, "T1056"),
+    "HTML_EXTERNAL_REFRESH": ("Rapid refresh routes to another site", "artifact", 0, None),
     "EMAIL_DOUBLE_EXTENSION": ("Attachment has a misleading double extension", "attachment", 34, "T1036.007"),
     "EMAIL_ACTIVE_ATTACHMENT": ("Attachment name has an executable or script extension", "attachment", 25, "T1566.001"),
+    "EMAIL_ARCHIVE_LURE": ("Archive attachment accompanies an urgent document subject", "attachment", 12, None),
+    "EMAIL_BIDI_FILENAME": ("Attachment name contains bidirectional override characters", "attachment", 28, "T1036"),
     "EMAIL_REPLY_TO": ("Reply-To uses a different domain", "email", 18, None),
     "EMAIL_ENVELOPE": ("From differs from envelope domain", "email", 0, None),
     "EMAIL_LINK_MISMATCH": ("Email link label differs from destination", "email", 28, "T1566.002"),
