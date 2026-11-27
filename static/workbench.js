@@ -8,32 +8,6 @@ const node = (tag, text, className) => {
   return element;
 };
 
-const settings = {
-  url: {
-    endpoint: '/api/v1/scan',
-    help: 'PhishMatrix checks registration and reputation without opening the submitted page.',
-  },
-  email: {
-    endpoint: '/api/v1/email-scan', label: 'Raw email or MIME message', max: 50000,
-    placeholder: 'From: sender@example.com\nSubject: Message to investigate\n\nPaste the email body here.',
-    help: 'Email is analyzed without external lookups. Pasted authentication headers are treated as unverified claims.',
-  },
-  html: {
-    endpoint: '/api/v1/html-scan', label: 'Page source', max: 65536,
-    placeholder: 'Paste HTML as text.',
-    help: 'Analyzes HTML as an inert document. PhishMatrix never runs scripts or follows links.',
-  },
-  hash: {
-    endpoint: '/api/v1/hash-lookup',
-    help: 'Looks up MD5, SHA-1 or SHA-256 metadata in MalShare. No file is uploaded or downloaded.',
-  },
-  bulk: {
-    endpoint: '/api/v1/bulk-scan', label: 'Indicators, one per line', max: 16391,
-    placeholder: 'example.com\nexample.org',
-    help: 'Analyze up to eight URLs, domains or IPs as one investigation.',
-  },
-};
-
 const templateNames = {
   sigma_rule: 'Sigma · Windows network telemetry', sigma_case: 'Sigma · PhishMatrix findings',
   sigma_process_hash: 'Sigma · Windows process image hash', yara_hash: 'YARA · exact file digest', splunk_spl: 'Splunk SPL', sentinel_kql: 'Microsoft Sentinel KQL',
@@ -46,56 +20,21 @@ const labelVerdict = {
   SUSPICIOUS: 'Suspicious', INCONCLUSIVE: 'Inconclusive', MALICIOUS: 'Malicious',
   BLOCKED: 'Blocked', UNAVAILABLE: 'Unavailable',
 };
-let mode = 'url';
 let current = null;
 let running = false;
 let catalogueLoaded = false;
 const history = [];
-const drafts = new Map();
 const caseReviews = new Map();
 const scoreLabels = {
   file_reputation: 'File hash reputation', artifact: 'HTML evidence', attachment: 'Attachment metadata', registration: 'Registration',
   lexical: 'URL structure', historical: 'Historical URL evidence', url_reputation: 'Exact URL reputation', domain_reputation: 'Domain reputation',
   infrastructure: 'Infrastructure', email: 'Email evidence',
 };
-const indicator = byId('indicator');
+const emailFile = byId('email-file');
+let uploadedRaw = null;
 const sampleText = byId('sample-text');
 const scanStatus = byId('scan-status');
 const scanError = byId('scan-error');
-
-function changeMode(next) {
-  drafts.set(mode, [indicator.value, sampleText.value]);
-  mode = next;
-  byId('offline-option').hidden = next !== 'url' && next !== 'bulk';
-  const config = settings[mode];
-  const hasIndicator = mode === 'url' || mode === 'html' || mode === 'hash';
-  const hasText = Boolean(config.label);
-  const [savedIndicator, savedSample] = drafts.get(mode) || ['', ''];
-  indicator.value = savedIndicator;
-  sampleText.value = savedSample;
-  indicator.hidden = byId('indicator-label').hidden = !hasIndicator;
-  indicator.required = mode === 'url' || mode === 'hash';
-  indicator.placeholder = mode === 'hash' ? 'Enter an MD5, SHA-1 or SHA-256 digest' : mode === 'html' ? 'https://example.com (optional)' : 'https://example.com';
-  byId('indicator-label').textContent = mode === 'hash' ? 'File hash' : mode === 'html' ? 'Page URL, if known' : 'URL, domain or IP address';
-  sampleText.hidden = byId('sample-label').hidden = !hasText;
-  sampleText.required = hasText;
-  sampleText.placeholder = config.placeholder || '';
-  sampleText.maxLength = config.max || 65536;
-  byId('sample-label').textContent = config.label || '';
-  byId('input-help').textContent = config.help;
-  for (const button of document.querySelectorAll('[data-mode]')) {
-    button.setAttribute('aria-pressed', String(button.dataset.mode === mode));
-  }
-  scanError.hidden = true;
-}
-
-function scanPayload() {
-  if (mode === 'hash') return { hash: indicator.value.trim() };
-  if (mode === 'url') return { url: indicator.value.trim(), offline: byId('offline-mode').checked };
-  if (mode === 'email') return { raw_email: sampleText.value };
-  if (mode === 'html') return { html: sampleText.value, url: indicator.value.trim() || null };
-  return { offline: byId('offline-mode').checked, urls: sampleText.value.split(/\r?\n/).map((line) => line.trim()).filter(Boolean) };
-}
 
 async function getJSON(endpoint, payload) {
   const response = await fetch(endpoint, {
@@ -111,27 +50,21 @@ async function getJSON(endpoint, payload) {
 }
 
 function riskPanel(result) {
-  const isBulk = result?.kind === 'bulk';
   const verdict = result?.verdict;
-  const score = Number.isFinite(result?.risk_score) ? result.risk_score : null;
-  const scoreText = score === null ? '—' : String(score);
-  byId('verdict').textContent = isBulk ? 'Batch complete' : labelVerdict[verdict] || 'Awaiting scan';
-  byId('risk-score').textContent = scoreText;
+  const score = result?.risk_score ?? null;
+  byId('verdict').textContent = labelVerdict[verdict] || 'Awaiting scan';
+  byId('risk-score').textContent = score === null ? '—' : String(score);
   byId('ring-fill').setAttribute('stroke-dasharray', `${score || 0} 100`);
   document.querySelector('.risk-card').dataset.tone = tone[verdict] || 'neutral';
-  const age = result?.forensics?.whois;
   const topFinding = result?.evidence?.find((entry) => entry.points > 0);
-  const explanation = result?.executive_summary || (isBulk ? `${result.count} indicators analyzed.` :
-    verdict === 'INCONCLUSIVE' ? (score ? 'Findings below the alert threshold. Coverage is limited.' : 'No risk points from available checks. Coverage is limited.') :
-      topFinding ? `Top finding: ${topFinding.label}.` : '');
-  byId('risk-reason').textContent = explanation || (result ? 'Review the evidence and source coverage below.' : 'Run an investigation to see the verdict and its supporting evidence.');
+  byId('risk-reason').textContent = !result ? 'Run an investigation to see the evidence.' :
+    verdict === 'INCONCLUSIVE' ? (score ? 'Findings below the alert threshold. Review the evidence.' : 'The static checks returned no risk points.') :
+      topFinding ? `Top finding: ${topFinding.label}.` : 'Review the evidence below.';
   byId('case-id').textContent = result?.case_id?.slice(0, 8) || '—';
-  byId('domain-age').textContent = age && result.domain_age ? result.domain_age.split(' (')[0] : '—';
-  byId('domain-source').textContent = age ? [age.queried_domain, age.registration_source || age.registration_status].join(' · ') : 'RDAP / WHOIS';
-  byId('signal-count').textContent = isBulk ? result.count : (result?.evidence?.length ?? '—');
-  byId('signal-detail').textContent = isBulk ? 'Indicators processed' : 'Scored and contextual findings';
-  byId('duration').textContent = Number.isFinite(result?.scan_metadata?.scan_duration_ms) ? `${result.scan_metadata.scan_duration_ms} ms` : '—';
-  byId('scan-mode').textContent = result?.kind ? { url: result.scan_metadata?.mode === 'offline' ? 'Offline URL investigation' : 'Passive URL investigation', email: 'Offline email triage', html: 'Offline HTML inspection', bulk: result.scan_metadata?.mode === 'offline' ? 'Offline bulk scan' : 'Passive bulk scan', hash: 'File hash metadata lookup' }[result.kind] : 'Latest investigation';
+  byId('link-count').textContent = result?.extracted_urls.length ?? '—';
+  byId('signal-count').textContent = result?.evidence.length ?? '—';
+  byId('duration').textContent = result ? `${result.scan_metadata.scan_duration_ms} ms` : '—';
+  byId('scan-mode').textContent = result ? 'Static email inspection' : 'Latest investigation';
 }
 
 function renderEvidence(result) {
@@ -148,24 +81,11 @@ function renderEvidence(result) {
     item.append(label, node('span', evidence.points ? `Weight ${evidence.points}` : 'Context', 'points'));
     list.append(item);
   }
-  for (const row of result?.results || []) {
-    const label = node('div');
-    label.append(node('strong', row.indicator || `Indicator ${row.position}`), node('small', row.reputation_coverage?.detail || row.domain_age || row.detail || ''));
-    const item = node('li');
-    const verdictLabel = labelVerdict[row.verdict] || row.verdict;
-    item.append(label, node('span', Number.isFinite(row.risk_score) ? `${verdictLabel} · ${row.risk_score}/100` : verdictLabel, 'pill'));
-    list.append(item);
-  }
-  byId('evidence-total').textContent = result?.kind === 'bulk' ? `${result.count} results` : `${rows.length} findings`;
+  byId('evidence-total').textContent = `${rows.length} findings`;
   byId('evidence-empty').hidden = Boolean(list.children.length);
-  byId('evidence-empty').textContent = rows.length ? 'No findings match this filter.' : result?.kind === 'hash' ? result.executive_summary : result ? 'The available checks returned no findings.' : 'Findings appear when the investigation returns evidence.';
+  byId('evidence-empty').textContent = rows.length ? 'No findings match this filter.' : result ?
+    'The static checks returned no findings.' : 'Findings appear when the investigation returns evidence.';
 
-  const advisory = result?.ai_advisory;
-  byId('analyst-advisory').hidden = !advisory;
-  if (advisory) {
-    byId('advisory-source').textContent = advisory.source;
-    byId('advisory-text').textContent = advisory.text;
-  }
   const contributions = Object.entries(result?.contributions || {});
   byId('breakdown').hidden = !contributions.length;
   const scoreRows = byId('score-rows');
@@ -180,15 +100,11 @@ function renderEvidence(result) {
 
   const context = byId('response-context');
   context.replaceChildren();
-  if (result?.kind === 'email') {
+  if (result) {
     context.append(node('p', `Subject · ${result.subject}`), node('p', `From · ${result.from || 'Unavailable'}`));
     if (result.reply_to) context.append(node('p', `Reply-To · ${result.reply_to}`));
     if (result.extracted_urls.length) context.append(node('p', 'Extracted links'), ...result.extracted_urls.map((url) => node('p', url)));
     if (result.attachments.length) context.append(node('p', `Attachment names · ${result.attachments.join(', ')}`));
-  } else if (result?.kind === 'html') {
-    const page = result.dom_forensics;
-    if (page.page_title) context.append(node('p', `Page title · ${page.page_title}`));
-    context.append(node('p', `Forms inspected · ${page.forms_inspected}`));
   }
   context.hidden = !context.children.length;
 
@@ -231,6 +147,7 @@ function renderRules(result) {
   byId('rule-picker').hidden = !select.children.length;
   displayRule(result, select.value);
   byId('download-case').disabled = !result;
+  byId('download-pdf').disabled = !result?.report_pdf;
   byId('download-siem').disabled = !result?.siem_event;
 }
 
@@ -253,7 +170,7 @@ function renderHistory() {
   for (const result of history) {
     const item = node('li');
     const stamp = new Date(result.timestamp);
-    const label = result.target?.defanged_domain || result.subject || (result.kind === 'bulk' ? `${result.count} indicators` : result.kind === 'hash' ? result.target.hash.slice(0, 16) + '…' : 'HTML sample');
+    const label = result.subject;
     const button = node('button', label);
     button.type = 'button';
     button.append(node('small', stamp.toLocaleString()));
@@ -284,7 +201,9 @@ async function run() {
     timer.textContent = `${((performance.now() - started) / 1000).toFixed(1)} s`;
   }, 100);
   try {
-    const result = await getJSON(settings[mode].endpoint, scanPayload());
+    const raw = uploadedRaw ?? sampleText.value;
+    if (!raw.trim()) throw new Error('Paste a raw email or upload an .eml file.');
+    const result = await getJSON('/api/v1/email-scan', { raw_email: raw, include_pdf: true });
     show(result);
     history.unshift(result);
     if (history.length > 20) caseReviews.delete(history.pop().case_id);
@@ -307,8 +226,8 @@ async function run() {
   }
 }
 
-function download(data, filename) {
-  const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2) + '\n'], { type: 'application/json' }));
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
   const anchor = node('a');
   anchor.href = url;
   anchor.download = filename;
@@ -316,7 +235,37 @@ function download(data, filename) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-for (const button of document.querySelectorAll('[data-mode]')) button.addEventListener('click', () => changeMode(button.dataset.mode));
+function download(data, filename) {
+  downloadBlob(new Blob([JSON.stringify(data, null, 2) + '\n'], { type: 'application/json' }), filename);
+}
+
+sampleText.addEventListener('input', () => {
+  uploadedRaw = null;
+  emailFile.value = '';
+  scanError.hidden = true;
+});
+emailFile.addEventListener('change', async () => {
+  const [file] = emailFile.files;
+  if (!file) return;
+  byId('run').disabled = true;
+  try {
+    if (!file.name.toLowerCase().endsWith('.eml') || file.size > 50000) throw new Error('Choose a .eml file up to 50 KB.');
+    const raw = new TextDecoder('utf-8', { fatal: true }).decode(await file.arrayBuffer());
+    if (file !== emailFile.files[0]) return;
+    if (!raw.trim() || raw.includes('\0')) throw new Error('The file must contain a text email.');
+    uploadedRaw = raw;
+    sampleText.value = raw;
+    scanError.hidden = true;
+    scanStatus.textContent = 'Email loaded.';
+  } catch (error) {
+    if (file !== emailFile.files[0]) return;
+    emailFile.value = '';
+    scanError.textContent = error instanceof TypeError ? 'The .eml file must use UTF-8 or ASCII encoding.' : error.message;
+    scanError.hidden = false;
+  } finally {
+    if (!running) byId('run').disabled = false;
+  }
+});
 for (const link of document.querySelectorAll('.nav-link')) link.addEventListener('click', () => {
   for (const peer of document.querySelectorAll('.nav-link')) peer.classList.toggle('selected', peer === link);
 });
@@ -325,9 +274,16 @@ byId('scan-form').addEventListener('submit', (event) => {
   void run();
 });
 byId('sample').addEventListener('click', () => {
-  changeMode('html');
-  indicator.value = 'https://northstar-training.example/login';
-  sampleText.value = '<title>Northstar verification sample</title>\n<form action="https://collector.example/session">\n  <input type="password" name="password">\n</form>\n<a href="https://collector.example/help">https://northstar-training.example/help</a>';
+  uploadedRaw = null;
+  emailFile.value = '';
+  sampleText.value = `From: Northstar Training <alerts@northstar.example>
+Reply-To: review@collector.example
+Subject: [TEST] Account review
+MIME-Version: 1.0
+Content-Type: text/html; charset=UTF-8
+
+<p>Synthetic training sample.</p>
+<a href="https://collector.example/review">https://northstar.example/review</a>`;
   void run();
 });
 byId('clear-session').addEventListener('click', () => {
@@ -367,7 +323,13 @@ byId('copy-rule').addEventListener('click', async () => {
 byId('download-case').addEventListener('click', () => {
   if (!current) return;
   const review = caseReviews.get(current.case_id);
-  download(review ? { ...current, analyst_review: review } : current, 'phishmatrix-case.json');
+  const { report_pdf, ...caseData } = current;
+  download(review ? { ...caseData, analyst_review: review } : caseData, `phishmatrix-${current.case_id}.json`);
+});
+byId('download-pdf').addEventListener('click', () => {
+  if (!current?.report_pdf) return;
+  const bytes = Uint8Array.from(atob(current.report_pdf), (char) => char.charCodeAt(0));
+  downloadBlob(new Blob([bytes], { type: 'application/pdf' }), `phishmatrix-${current.case_id}.pdf`);
 });
 byId('download-siem').addEventListener('click', () => {
   if (current?.siem_event) download(current.siem_event, 'phishmatrix-siem-event.json');

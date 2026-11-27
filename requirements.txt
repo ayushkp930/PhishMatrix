@@ -8,3 +8,4 @@ beautifulsoup4==4.14.3
 tldextract==5.4.0
 pytest==8.3.3
 dnspython==2.8.0
+reportlab==5.1.2

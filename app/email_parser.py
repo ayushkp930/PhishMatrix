@@ -8,6 +8,8 @@ from email.utils import parseaddr
 from bs4 import BeautifulSoup
 
 from app.engines.dom_hunter import domain_key, inspect_html
+from app.engines.heuristics import lexical_findings
+from app.historical_intel import historical_url_lookup
 from app.scoring import assess, finding
 from app.security import defang_ioc, normalize_target, printable
 
@@ -17,6 +19,19 @@ URL_PATTERN = re.compile(r"https?://[^\s'\"<>)\]]+", re.I)
 ARCHIVE_SUFFIXES = {"zip", "rar", "7z", "iso", "img"}
 DOCUMENT_LURE = re.compile(r"\b(?:invoice|payment|payroll|statement|receipt)\b", re.I)
 URGENCY = re.compile(r"\b(?:urgent|immediate|overdue|today|past due)\b", re.I)
+IMPERSONATION_RULES = {"BRAND_CONFUSABLE", "URL_BRAND_SUBDOMAIN", "URL_SHARED_TENANT_LURE"}
+
+
+def message_parts(message):
+    stack = [message]
+    for _ in range(50):
+        if not stack:
+            break
+        part = stack.pop()
+        yield part
+        if (part.get_content_maintype() == "multipart" and part.is_multipart()
+                and not part.get_filename() and part.get_content_disposition() != "attachment"):
+            stack.extend(reversed(part.get_payload()))
 
 
 def extract_address(msg, field: str) -> tuple[str, str]:
@@ -34,12 +49,16 @@ def analyze_raw_email(raw_email: str) -> dict:
     auth = " ".join(str(value) for value in msg.get_all("Authentication-Results", []))
     claims = {key: re.findall(rf"\b{key}\s*=\s*([a-z]+)", auth, re.I)[:6] for key in ("spf", "dkim", "dmarc")}
 
-    links = set()
+    links = {}
     display_mismatches = 0
     embedded_behaviors = set()
     attachments = []
     attachment_rules = set()
-    for part in list(msg.walk())[:50]:
+    for part in message_parts(msg):
+        if part.get_content_type() == "message/rfc822":
+            attachments.append(printable(part.get_filename() or "Attached email (.eml)", 120))
+            attachment_rules.add("EMAIL_ATTACHED_MESSAGE")
+            continue
         if part.get_filename() or part.get_content_disposition() == "attachment":
             filename = part.get_filename() or "Unnamed attachment"
             if len(filename) <= 1024:
@@ -66,14 +85,16 @@ def analyze_raw_email(raw_email: str) -> dict:
             page, behaviors = inspect_html(text)
             display_mismatches += page["link_mismatches"]
             embedded_behaviors.update(item.rule_id for item in behaviors if item.rule_id != "HTML_LINK_MISMATCH")
-            links.update(str(a["href"]) for a in soup.find_all("a", href=True, limit=50))
+            for template in soup.find_all("template"):
+                template.extract()
+            for anchor in soup.find_all("a", href=True, limit=50):
+                links.setdefault(str(anchor["href"]), None)
         else:
-            links.update(URL_PATTERN.findall(text)[:50])
-        if len(links) >= 100:
-            break
+            links.update(dict.fromkeys(URL_PATTERN.findall(text)[:50]))
 
     safe_links = []
-    for candidate in sorted(links)[:100]:
+    link_rules = set()
+    for candidate in list(links)[:100]:
         if not candidate.lower().startswith(("http://", "https://")):
             continue
         try:
@@ -81,17 +102,28 @@ def analyze_raw_email(raw_email: str) -> dict:
         except ValueError:
             continue
         safe_url = target["url"].split("?", 1)[0]
-        safe_links.append(defang_ioc(safe_url, target["domain"])["defanged_url"])
-        if len(safe_links) == 12:
-            break
+        if len(safe_links) < 12:
+            shown = defang_ioc(safe_url, target["domain"])["defanged_url"]
+            if shown not in safe_links:
+                safe_links.append(shown)
+        if not target["has_fragment"] and historical_url_lookup(target["url"])["status"] == "Historical match":
+            link_rules.add("EMAIL_ARCHIVED_THREAT")
+        if any(item.rule_id in IMPERSONATION_RULES for item in lexical_findings(target["domain"], target["path"], target["query"])):
+            link_rules.add("EMAIL_LINK_IMPERSONATION")
 
     findings = [
         finding(rule, "Submitted email", "Matched attachment filename metadata. File contents were not opened.")
         for rule in sorted(attachment_rules)
     ]
     findings.extend(finding(rule, "Submitted email HTML", "Observed in the inert HTML MIME body.") for rule in sorted(embedded_behaviors))
+    if "EMAIL_ARCHIVED_THREAT" in link_rules:
+        findings.append(finding("EMAIL_ARCHIVED_THREAT", "Local archive", "An exact email link matches a historical phishing, malware or defacement label. Current activity is unverified."))
+    if "EMAIL_LINK_IMPERSONATION" in link_rules:
+        findings.append(finding("EMAIL_LINK_IMPERSONATION", "Submitted email link", "At least one linked hostname resembles or impersonates a monitored brand."))
     if from_domain and reply_domain and from_domain != reply_domain:
         findings.append(finding("EMAIL_REPLY_TO", "Submitted email", f"Sender domain {from_domain} differs from Reply-To domain {reply_domain}."))
+        if display_mismatches or link_rules:
+            findings.append(finding("EMAIL_REPLY_TO_CORROBORATED", "Submitted email", "A different reply domain appears alongside a deceptive or listed link."))
     if from_domain and envelope_domain and from_domain != envelope_domain:
         findings.append(finding("EMAIL_ENVELOPE", "Submitted email", "Different return paths can also be legitimate for mailing services."))
     if display_mismatches:
