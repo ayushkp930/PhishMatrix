@@ -62,6 +62,7 @@ const scanError = byId('scan-error');
 function changeMode(next) {
   drafts.set(mode, [indicator.value, sampleText.value]);
   mode = next;
+  byId('offline-option').hidden = next !== 'url' && next !== 'bulk';
   const config = settings[mode];
   const hasIndicator = mode === 'url' || mode === 'html' || mode === 'hash';
   const hasText = Boolean(config.label);
@@ -86,10 +87,10 @@ function changeMode(next) {
 
 function scanPayload() {
   if (mode === 'hash') return { hash: indicator.value.trim() };
-  if (mode === 'url') return { url: indicator.value.trim() };
+  if (mode === 'url') return { url: indicator.value.trim(), offline: byId('offline-mode').checked };
   if (mode === 'email') return { raw_email: sampleText.value };
   if (mode === 'html') return { html: sampleText.value, url: indicator.value.trim() || null };
-  return { urls: sampleText.value.split(/\r?\n/).map((line) => line.trim()).filter(Boolean) };
+  return { offline: byId('offline-mode').checked, urls: sampleText.value.split(/\r?\n/).map((line) => line.trim()).filter(Boolean) };
 }
 
 async function getJSON(endpoint, payload) {
@@ -125,7 +126,7 @@ function riskPanel(result) {
   byId('signal-count').textContent = isBulk ? result.count : (result?.evidence?.length ?? '—');
   byId('signal-detail').textContent = isBulk ? 'Indicators processed' : 'Scored and contextual findings';
   byId('duration').textContent = Number.isFinite(result?.scan_metadata?.scan_duration_ms) ? `${result.scan_metadata.scan_duration_ms} ms` : '—';
-  byId('scan-mode').textContent = result?.kind ? { url: 'Passive URL investigation', email: 'Offline email triage', html: 'Offline HTML inspection', bulk: 'Passive bulk scan', hash: 'File hash metadata lookup' }[result.kind] : 'Latest investigation';
+  byId('scan-mode').textContent = result?.kind ? { url: result.scan_metadata?.mode === 'offline' ? 'Offline URL investigation' : 'Passive URL investigation', email: 'Offline email triage', html: 'Offline HTML inspection', bulk: result.scan_metadata?.mode === 'offline' ? 'Offline bulk scan' : 'Passive bulk scan', hash: 'File hash metadata lookup' }[result.kind] : 'Latest investigation';
 }
 
 function renderEvidence(result) {
