@@ -1,6 +1,6 @@
-# PhishMatrix 7.3 · Investigation Console
+# PhishMatrix 7.4 · Investigation Console
 
-PhishMatrix is a FastAPI phishing triage tool for URLs, domains, IPs, submitted email and inert HTML samples. Each verdict includes the contributing detection rules and the status of the sources queried. The browser session can export case JSON with analyst notes and disposition. URL investigations also export a structured SIEM event.
+PhishMatrix is a FastAPI phishing triage tool for URLs, domains, IPs, submitted email and inert HTML samples. Each verdict includes the contributing detection rules and the status of the sources queried. The browser session can export case JSON with analyst notes and disposition. Individual investigations export a timestamped SIEM event with the same case ID as the report.
 
 ## Run locally
 
@@ -21,6 +21,7 @@ On Linux or macOS, use `python3` and `.venv/bin/python`. Open `http://127.0.0.1:
 | URL / domain / IP | RDAP, optional registry WHOIS fallback, local indicators, brand lookalike rules, optional provider reputation |
 | Email | Sender, Reply-To, envelope domain, link-label mismatches, defanged links and attachment names |
 | HTML sample | Credential forms that post to a different domain, messaging webhook form destinations, link-label mismatches and ClickFix patterns |
+| File hash | Exact MD5, SHA-1 or SHA-256 metadata lookup, whole-file YARA and Windows process image hash hunts |
 | Bulk | Up to eight indicators, with a separate outcome for each |
 
 The URL scanner does not request the submitted page. Default outbound traffic for URL investigations goes to registration authorities and configured intelligence providers. Submitted queries stay local. Web Risk defaults to origin-only lookups, with an explicit deployment setting for public paths. Query values are also removed from exported URLs. HTML and email are interpreted as text without executing scripts, opening attachments or fetching embedded resources.
@@ -100,7 +101,7 @@ Set `PHISHMATRIX_INTEL_FILE=intel-snapshot.json`. The import script replaces the
 
 Rebuild the bundled index from the same Kaggle archive with `python -m scripts.build_historical_index malicious-urls-dataset.zip`. The index and Kaggle evaluation scripts never open their sample URLs.
 
-URL scans produce Sigma, Splunk SPL, Sentinel KQL, Elastic KQL, CrowdStrike LogScale, Wazuh XML, Suricata and YARA hunting templates for supported hostnames. IP scans produce Splunk and Sentinel templates. Validate fields, rule IDs and format against your own parser before enabling any detection. The workbench does not deploy rules or send takedown requests.
+URL scans produce Sigma, Splunk SPL, Sentinel KQL, Elastic KQL, CrowdStrike LogScale, Wazuh XML, Suricata and YARA hunting templates for supported hostnames. IP scans produce Sigma, Splunk and Sentinel templates. Validate fields, rule IDs and format against your own parser before enabling any detection. The workbench does not deploy rules or send takedown requests.
 
 ## API and validation
 
@@ -114,3 +115,10 @@ python -m scripts.evaluate_rules
 See [SECURITY.md](SECURITY.md) for the deployment controls, limits and vulnerability disclosure guidance.
 
 Built by [Ayush Kumar Patel](https://github.com/ayushkp930). MIT license.
+
+
+## Validate exported detection rules
+
+Install the validation tools with `python -m pip install -r requirements-test.txt`, then run `python -m pytest -q`. The suite compiles YARA and runs Sigma DNS queries against synthetic telemetry. Windows DNS and process hash hunts require the matching log sources and field mappings. An indicator match identifies a file or event for investigation.
+
+The Sigma findings template targets structured PhishMatrix triage events. The exact digest for submitted HTML or email applies to its UTF-8 text, including its line endings. The hostname YARA rule searches ASCII and UTF-16LE text. Bulk reports summarize the individual inputs.
