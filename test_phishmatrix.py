@@ -397,7 +397,7 @@ def test_host_no_match_cannot_clear_a_page(offline_client, monkeypatch):
     assert result["risk_score"] == 0
     assert result["verdict"] == "INCONCLUSIVE"
     assert not result["reputation_coverage"]["sufficient_for_no_match"]
-    assert "No completed URL-level" in result["executive_summary"]
+    assert "Live URL reputation was unverified" in result["executive_summary"]
 
 
 def test_completed_url_reputation_reports_no_listing(offline_client, monkeypatch):
@@ -452,17 +452,34 @@ def test_historical_index_matches_a_path_without_clearing_the_host(offline_clien
         "example.com/archived,phishing\n"
         "example.com/conflict,malware\n"
         "example.com/conflict,benign\n"
+        "example.com/scheme-conflict,benign\n"
+        "https://example.com/scheme-conflict,phishing\n"
+        "https://example.com/archived-benign,benign\n"
     )
     monkeypatch.setattr("scripts.build_historical_index.open_csv", lambda *args: nullcontext(csv_file))
     index, counts = build_index(None)
     monkeypatch.setattr(historical_intel, "read_index", lambda: index)
-    assert counts["conflicting_keys_omitted"] == 1
+    assert counts["conflicting_keys_retained"] == 1
 
     archived = client.post("/api/v1/scan", json={"url": "http://example.com/archived"}).json()
     assert archived["verdict"] == "SUSPICIOUS"
     assert archived["risk_score"] == 30
     assert archived["providers"]["Kaggle historical index"]["labels"] == ["phishing"]
-    for suffix in ("", "/another-page", "/conflict", "/archived?token=test"):
+    for suffix in ("", "/another-page", "/archived?token=test"):
         response = client.post("/api/v1/scan", json={"url": "https://example.com" + suffix}).json()
         assert response["providers"]["Kaggle historical index"]["status"] == "No historical match"
         assert response["verdict"] == "INCONCLUSIVE"
+    for path, rule in [("/conflict", "TI_HISTORICAL_CONFLICT"), ("/scheme-conflict", "TI_HISTORICAL_CONFLICT"),
+                       ("/archived#client-route", "TI_HISTORICAL_FRAGMENT"), ("/archived-benign", "TI_HISTORICAL_BENIGN")]:
+        response = client.post("/api/v1/scan", json={"url": "https://example.com" + path, "offline": True}).json()
+        assert (response["verdict"], response["risk_score"]) == ("INCONCLUSIVE", 0)
+        assert response["evidence"][0]["rule_id"] == rule
+
+
+def test_bundled_kaggle_labels_apply_to_the_exact_page(offline_client):
+    client, _ = offline_client
+    page = client.post("/api/v1/scan", json={"url": "bopsecrets.org/rexroth/cr/1.htm", "offline": True}).json()
+    root = client.post("/api/v1/scan", json={"url": "bopsecrets.org", "offline": True}).json()
+    assert page["evidence"][0]["rule_id"] == "TI_HISTORICAL_BENIGN"
+    assert page["providers"]["Kaggle historical index"]["labels"] == ["benign"]
+    assert root["providers"]["Kaggle historical index"]["status"] == "No historical match"

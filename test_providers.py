@@ -1,5 +1,6 @@
 import asyncio
 import json
+from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 
 import httpx
@@ -100,6 +101,29 @@ def test_webrisk_status_and_opt_in_path(keys, monkeypatch):
     assert result["webrisk"]["status"] == "Match"
     assert result["urlscan"]["status"] == "Rate limited"
     assert result["greynoise"]["status"] == "No IP"
+
+
+def test_urlscan_matches_recent_final_url_without_sending_the_path(keys):
+    url = "https://example.com/private-path?token=local"
+    now = datetime.now(timezone.utc) - timedelta(minutes=1)
+
+    def hit(page, *, timestamp=now):
+        return {"task": {"time": timestamp.isoformat(), "url": url}, "page": {"url": page}}
+
+    unrelated = [hit(url, timestamp=now - timedelta(days=8)), hit(url.replace("private", "other")), hit(url + "#other")]
+
+    def route(request):
+        assert "private-path" not in str(request.url) and "token" not in str(request.url)
+        query = request.url.params.get("q", "")
+        if "verdicts.urlscan.malicious:true" not in query:
+            return httpx.Response(200, json={"results": []})
+        return httpx.Response(200, json={"results": unrelated})
+
+    absent = perform(route, lambda c: additional_lookups(c, url, "example.com", None, "domain"))
+    assert absent["urlscan_malicious"]["status"] == "No exact recent observation"
+    unrelated.append(hit(url))
+    found = perform(route, lambda c: additional_lookups(c, url, "example.com", None, "domain"))
+    assert found["urlscan_malicious"] == {"status": "Recent malicious scan", "scope": "url", "observed_at": now.isoformat()}
 
 
 def test_fixed_connectors_do_not_follow_redirects():
