@@ -35,9 +35,10 @@ const settings = {
 };
 
 const templateNames = {
-  sigma_rule: 'Sigma · DNS', splunk_spl: 'Splunk SPL', sentinel_kql: 'Microsoft Sentinel KQL',
+  sigma_rule: 'Sigma · Windows network telemetry', sigma_case: 'Sigma · PhishMatrix findings',
+  sigma_process_hash: 'Sigma · Windows process image hash', yara_hash: 'YARA · exact file digest', splunk_spl: 'Splunk SPL', sentinel_kql: 'Microsoft Sentinel KQL',
   elastic_kql: 'Elastic KQL', crowdstrike_cql: 'CrowdStrike LogScale',
-  wazuh_rule: 'Wazuh XML', suricata_rule: 'Suricata TLS', yara_rule: 'YARA',
+  wazuh_rule: 'Wazuh XML', suricata_rule: 'Suricata TLS', yara_rule: 'YARA · hostname in file text',
 };
 const tone = { CLEAN: 'positive', SUSPICIOUS: 'warning', INCONCLUSIVE: 'warning', MALICIOUS: 'danger' };
 const labelVerdict = { CLEAN: 'No match found', SUSPICIOUS: 'Suspicious', INCONCLUSIVE: 'Inconclusive', MALICIOUS: 'Malicious', BLOCKED: 'Blocked', UNAVAILABLE: 'Unavailable' };
@@ -49,7 +50,7 @@ const history = [];
 const drafts = new Map();
 const caseReviews = new Map();
 const scoreLabels = {
-  artifact: 'HTML evidence', attachment: 'Attachment metadata', registration: 'Registration',
+  file_reputation: 'File hash reputation', artifact: 'HTML evidence', attachment: 'Attachment metadata', registration: 'Registration',
   lexical: 'URL structure', historical: 'Historical URL evidence', url_reputation: 'Exact URL reputation', domain_reputation: 'Domain reputation',
   infrastructure: 'Infrastructure', email: 'Email evidence',
 };
@@ -109,7 +110,7 @@ function riskPanel(result) {
   const verdict = result?.verdict;
   const score = verdict !== 'INCONCLUSIVE' && Number.isFinite(result?.risk_score) ? result.risk_score : null;
   const scoreText = score === null ? '—' : String(score);
-  byId('verdict').textContent = isBulk ? 'Batch complete' : result?.kind === 'hash' ? 'Lookup complete' : labelVerdict[verdict] || 'Awaiting scan';
+  byId('verdict').textContent = isBulk ? 'Batch complete' : labelVerdict[verdict] || 'Awaiting scan';
   byId('risk-score').textContent = scoreText;
   byId('ring-fill').setAttribute('stroke-dasharray', `${score || 0} 100`);
   document.querySelector('.risk-card').dataset.tone = tone[verdict] || 'neutral';
@@ -150,7 +151,7 @@ function renderEvidence(result) {
   }
   byId('evidence-total').textContent = result?.kind === 'bulk' ? `${result.count} results` : `${rows.length} findings`;
   byId('evidence-empty').hidden = Boolean(list.children.length);
-  byId('evidence-empty').textContent = rows.length ? 'No findings match this filter.' : result?.verdict === 'INCONCLUSIVE' ? 'No positive findings. Reputation coverage is incomplete.' : result ? 'The completed checks returned no findings.' : 'Findings appear when the investigation returns evidence.';
+  byId('evidence-empty').textContent = rows.length ? 'No findings match this filter.' : result?.kind === 'hash' ? result.executive_summary : result?.verdict === 'INCONCLUSIVE' ? 'No positive findings. Available evidence is insufficient.' : result ? 'The completed checks returned no findings.' : 'Findings appear when the investigation returns evidence.';
 
   const providerList = byId('providers');
   providerList.replaceChildren();
@@ -219,6 +220,20 @@ function renderEvidence(result) {
   actions.hidden = !actions.children.length;
 }
 
+function displayRule(result, key) {
+  byId('rule-text').textContent = result?.soc_arsenal?.[key] || '';
+  const hints = {
+    sigma_case: 'Matches the listed findings in exported PhishMatrix events. Forward the structured event fields to your SIEM.',
+    sigma_rule: 'Hunts for the investigated host in Windows DNS queries or the destination IP in network connection logs. A hit identifies contact for review.',
+    sigma_process_hash: 'Requires Windows process creation telemetry with image hashing enabled. Matches executed images only.',
+    yara_hash: result?.kind === 'hash' ? 'Matches the complete file digest supplied in this case.' : 'Matches the exact UTF-8 text submitted here. Changes to encoding or line endings produce a different digest.',
+    yara_rule: 'Searches ASCII and UTF-16LE text for the exact hostname. A mention in a file is contextual evidence.',
+    suricata_rule: 'Matches the exact hostname in visible TLS SNI. Assign an unused local SID before loading.',
+    wazuh_rule: 'Requires JSON events with dns.question.name. Assign an unused local rule ID before loading.',
+  };
+  byId('rule-scope').textContent = hints[key] || 'Hunting query for the submitted indicator. Verify field mappings against your telemetry.';
+}
+
 function renderRules(result) {
   const select = byId('rule-select');
   select.replaceChildren();
@@ -228,7 +243,7 @@ function renderRules(result) {
     select.append(option);
   }
   byId('rule-picker').hidden = !select.children.length;
-  byId('rule-text').textContent = result?.soc_arsenal?.[select.value] || '';
+  displayRule(result, select.value);
   byId('download-case').disabled = !result;
   byId('download-siem').disabled = !result?.siem_event;
 }
@@ -252,7 +267,7 @@ function renderHistory() {
   for (const result of history) {
     const item = node('li');
     const stamp = new Date(result.timestamp);
-    const label = result.target?.defanged_domain || result.subject || (result.kind === 'bulk' ? `${result.count} indicators` : result.kind === 'hash' ? 'File hash lookup' : 'HTML sample');
+    const label = result.target?.defanged_domain || result.subject || (result.kind === 'bulk' ? `${result.count} indicators` : result.kind === 'hash' ? result.target.hash.slice(0, 16) + '…' : 'HTML sample');
     const button = node('button', label);
     button.type = 'button';
     button.append(node('small', stamp.toLocaleString()));
@@ -283,15 +298,7 @@ async function run() {
     timer.textContent = `${((performance.now() - started) / 1000).toFixed(1)} s`;
   }, 100);
   try {
-    const submittedMode = mode;
-    const response = await getJSON(settings[mode].endpoint, scanPayload());
-    const result = submittedMode === 'hash' ? {
-      kind: 'hash',
-      case_id: response.case_id,
-      timestamp: response.timestamp,
-      executive_summary: `MalShare metadata lookup · ${response.status}`,
-      providers: { MalShare: { status: response.status } },
-    } : response;
+    const result = await getJSON(settings[mode].endpoint, scanPayload());
     show(result);
     history.unshift(result);
     if (history.length > 20) caseReviews.delete(history.pop().case_id);
@@ -359,7 +366,7 @@ function recordReview() {
 byId('disposition').addEventListener('change', recordReview);
 byId('notes').addEventListener('input', recordReview);
 byId('rule-select').addEventListener('change', (event) => {
-  byId('rule-text').textContent = current?.soc_arsenal?.[event.target.value] || '';
+  displayRule(current, event.target.value);
 });
 byId('copy-rule').addEventListener('click', async () => {
   const button = byId('copy-rule');

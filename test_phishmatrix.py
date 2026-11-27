@@ -137,7 +137,8 @@ def test_same_day_in_url_bulk_and_cli(offline_client):
     assert result["verdict"] == "SUSPICIOUS"
     assert result["domain_age"] == "Under 24 hours (2026-11-26 · RDAP)"
     assert result["summary"]["evidence"][0]["rule_id"] == "NRD_24H"
-    assert result["siem_event"]["dns"]["question"]["name"] == "login.fresh.co.in"
+    assert result["siem_event"]["related"]["hosts"] == ["login.fresh.co.in"]
+    assert "dns" not in result["siem_event"]
     assert "fixture-private" not in response.text
     assert "<rule" in result["soc_arsenal"]["wazuh_rule"]
     bulk = client.post("/api/v1/bulk-scan", json={"urls": [url, "http://127.0.0.1"]}).json()["results"]
@@ -201,7 +202,7 @@ def test_request_limits_csp_and_origin(offline_client):
     assert client.post("/api/v1/html-scan", content=iter(large), headers={"Content-Type": "application/json"}).status_code == 413
     invalid = client.post("/api/v1/scan", json={"url": {"sensitive": "secret-fixture"}})
     assert invalid.status_code == 422 and "secret-fixture" not in invalid.text
-    assert client.get("/api/v1/rules").json()["ruleset_version"] == "7.3"
+    assert client.get("/api/v1/rules").json()["ruleset_version"] == client.get("/health").json()["version"]
 
 
 def test_rate_limit_is_bounded():

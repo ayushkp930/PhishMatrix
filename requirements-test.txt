@@ -1,0 +1,4 @@
+-r requirements.txt
+yara-python==4.5.4
+pySigma==2.1.2
+pySigma-backend-sqlite==2.2.0
