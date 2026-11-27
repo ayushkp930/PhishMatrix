@@ -5,6 +5,7 @@ import os
 import time
 from datetime import datetime, timezone
 from uuid import uuid4
+from hashlib import sha256
 
 import httpx
 
@@ -14,7 +15,7 @@ from app.engines.legacy_intel import NAMES as LEGACY_PROVIDER_NAMES
 from app.engines.dom_hunter import inspect_html
 from app.engines.forensics import lookup_whois_rdap
 from app.engines.heuristics import lexical_findings
-from app.engines.soc_generator import generate_blue_team_arsenal, siem_event
+from app.engines.soc_generator import case_exports
 from app.engines.threat_intel import query_all_threat_feeds
 from app.historical_intel import SOURCE as HISTORICAL_SOURCE, historical_url_lookup
 from app.intel import lookup_snapshot
@@ -146,6 +147,7 @@ async def investigate_target(raw_input: str) -> dict:
     async with httpx.AsyncClient(timeout=1.8, follow_redirects=False) as client:
         analyst = await summarize(client, result)
     case_id = str(uuid4())
+    timestamp = datetime.now(timezone.utc).isoformat()
     providers = {PROVIDER_NAMES[name]: feed for name, feed in feeds.items()}
     providers.update({f"AI · {name}": {"status": state} for name, state in analyst["providers"].items()})
     providers["Kaggle historical index"] = historical
@@ -154,7 +156,7 @@ async def investigate_target(raw_input: str) -> dict:
     return {
         **result,
         "case_id": case_id,
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": timestamp,
         "kind": "url",
         "executive_summary": (
             coverage["detail"] if verdict in {"INCONCLUSIVE", "CLEAN"}
@@ -178,8 +180,7 @@ async def investigate_target(raw_input: str) -> dict:
         },
         "engines": feeds,
         "recommendations": recommendations(verdict),
-        "soc_arsenal": generate_blue_team_arsenal(domain),
-        "siem_event": siem_event(case_id, domain, result),
+        **case_exports(case_id, timestamp, result, "url", host=domain),
     }
 
 
@@ -188,10 +189,14 @@ def investigate_html(html: str, context: str | None) -> dict:
     target = normalize_target(context, resolve=False) if context else None
     page, findings = inspect_html(html, target["url"] if target else None)
     result = assess(findings, coverage_sufficient=False)
+    case_id = str(uuid4())
+    timestamp = datetime.now(timezone.utc).isoformat()
     return {
         **result,
-        "case_id": str(uuid4()),
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "case_id": case_id,
+        **case_exports(case_id, timestamp, result, "html", host=target["domain"] if target else None,
+                       digest=sha256(html.encode("utf-8")).hexdigest()),
+        "timestamp": timestamp,
         "kind": "html",
         "dom_forensics": page,
         "scan_metadata": {"mode": "offline", "scan_duration_ms": round((time.monotonic() - started) * 1000)},

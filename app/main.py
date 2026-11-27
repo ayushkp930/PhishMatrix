@@ -3,6 +3,7 @@ import logging
 import time
 from datetime import datetime, timezone
 from pathlib import Path
+from hashlib import sha256
 from typing import Annotated
 from uuid import uuid4
 
@@ -15,11 +16,12 @@ from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, StringConstraints
 
+from app.engines.soc_generator import case_exports
 from app.engines.legacy_intel import malshare_lookup
 from app.email_parser import analyze_raw_email
 from app.middleware import WorkbenchMiddleware
 from app.orchestrator import investigate_html, investigate_target
-from app.scoring import VERSION, catalogue
+from app.scoring import VERSION, catalogue, assess, finding
 from app.security import HoneypotTrapTriggered, printable
 
 load_dotenv()
@@ -141,9 +143,16 @@ async def api_scan_url(req: ScanRequest, request: Request):
 async def api_lookup_hash(req: HashLookupRequest):
     async with httpx.AsyncClient(timeout=3.0, follow_redirects=False) as client:
         result = await malshare_lookup(client, req.hash)
+    case_id = str(uuid4())
+    timestamp = datetime.now(timezone.utc).isoformat()
+    status = result["status"]
+    findings = [finding("TI_HASH_LISTED", "MalShare", "The exact file digest appears in MalShare. Confirm file behavior before containment.")] if status == "Match" else []
+    assessment = assess(findings, coverage_sufficient=False)
     return {
-        "provider": "MalShare", **result, "case_id": str(uuid4()),
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "provider": "MalShare", **result, **assessment, "case_id": case_id, "kind": "hash", "timestamp": timestamp,
+        "target": {"hash": req.hash}, "providers": {"MalShare": result},
+        "executive_summary": f"MalShare metadata lookup: {status}.",
+        **case_exports(case_id, timestamp, assessment, "hash", digest=req.hash),
     }
 
 
@@ -155,11 +164,12 @@ async def api_scan_email(req: EmailScanRequest):
     if not raw or not raw.strip():
         raise HTTPException(status_code=400, detail="Email content cannot be empty.")
     result = await asyncio.to_thread(analyze_raw_email, raw)
+    case_id = str(uuid4())
+    timestamp = datetime.now(timezone.utc).isoformat()
     return {
         **result,
-        "case_id": str(uuid4()),
-        "timestamp": datetime.now(timezone.utc).isoformat(),
-        "kind": "email",
+        "case_id": case_id, "timestamp": timestamp, "kind": "email",
+        **case_exports(case_id, timestamp, result, "email", digest=sha256(raw.encode("utf-8")).hexdigest()),
         "scan_metadata": {"mode": "offline", "scan_duration_ms": round((time.monotonic() - started) * 1000)},
     }
 
