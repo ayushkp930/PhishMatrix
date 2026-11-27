@@ -64,19 +64,39 @@ def inspect_html(html: str, context_url: str | None = None) -> tuple[dict, list[
                 document_base = base.geturl()
         except ValueError:
             pass
+    if context_host:
+        for refresh in soup.find_all("meta", attrs={"http-equiv": re.compile(r"^refresh$", re.I)}, limit=8):
+            match = re.fullmatch(r"\s*([0-3])\s*;\s*url\s*=\s*(.+)", refresh.get("content", ""), re.I)
+            if match:
+                try:
+                    target = urlsplit(urljoin(document_base, match[2].strip(" '\"")))
+                    if target.hostname and target.scheme in {"http", "https"} and domain_key(target.hostname) != domain_key(context_host):
+                        findings.append(finding("HTML_EXTERNAL_REFRESH", "Submitted HTML", "A rapid meta refresh names a different site."))
+                        break
+                except ValueError:
+                    continue
     has_password_form = False
     form_count = 0
     for form in soup.find_all("form", limit=100):
         form_count += 1
-        passwords = form.find_all("input", attrs={"type": re.compile("^password$", re.I)})
-        if not any(control_enabled(field) and field.get("form", form.get("id")) == form.get("id") for field in passwords):
+        fields = [field for field in form.find_all("input", limit=200)
+                  if control_enabled(field) and field.get("form", form.get("id")) == form.get("id")]
+        passwords = [field for field in fields if field.get("type", "").lower() == "password"]
+        otp_field = any(field.get("name") and "one-time-code" in field.get("autocomplete", "").lower().split() for field in fields)
+        if not passwords and not otp_field:
             continue
-        has_password_form = True
+        has_password_form = has_password_form or bool(passwords)
+        method = form.get("method", "").lower()
         try:
             destination = str(form.get("action") or "").strip()
             action = urlsplit(urljoin(document_base, destination) if destination else (context_url or ""))
             host = action.hostname
         except ValueError:
+            continue
+        if not passwords:
+            if (method == "post" and action.scheme in {"http", "https"} and host and context_host
+                    and domain_key(host) != domain_key(context_host)):
+                findings.append(finding("HTML_OTP_CROSS_ORIGIN", "Submitted HTML", "A form with a one-time code field submits to a different site."))
             continue
         for button in form.find_all(["button", "input"], formaction=True, limit=50):
             default_type = "submit" if button.name == "button" else "text"
@@ -93,8 +113,14 @@ def inspect_html(html: str, context_url: str | None = None) -> tuple[dict, list[
                     break
             except ValueError:
                 continue
-        if not host or action.scheme not in {"http", "https"} or form.get("method", "").lower() == "dialog":
+        if method == "dialog":
             continue
+        if action.scheme == "mailto" and action.path and any(field.get("name") for field in passwords):
+            findings.append(finding("HTML_PASSWORD_MAILTO", "Submitted HTML", "A form with a named password field opens an email destination on submission."))
+        if not host or action.scheme not in {"http", "https"}:
+            continue
+        if method == "get" and any(field.get("name") for field in passwords):
+            findings.append(finding("HTML_PASSWORD_QUERY", "Submitted HTML", "The explicit GET method can expose a named password field in the URL."))
         target = domain_key(host)
         if (host == "api.telegram.org" and action.path.startswith("/bot")) or (
             host in {"discord.com", "discordapp.com"} and action.path.startswith("/api/webhooks/")
