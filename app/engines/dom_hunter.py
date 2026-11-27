@@ -5,14 +5,18 @@ from urllib.parse import urljoin, urlsplit
 
 from bs4 import BeautifulSoup
 
-from app.engines.forensics import registrable_domain
+import tldextract
 from app.scoring import Finding, finding
 from app.security import printable
 
 
+# Keep different tenants of shared hosting services separate in artifact comparisons.
+TENANT_SUFFIXES = tldextract.TLDExtract(cache_dir=None, suffix_list_urls=(), include_psl_private_domains=True)
+
+
 def domain_key(host: str) -> str:
     normalized = host.lower().rstrip(".")
-    return registrable_domain(normalized) or normalized
+    return TENANT_SUFFIXES(normalized).top_domain_under_public_suffix or normalized
 
 
 def link_mismatches(soup: BeautifulSoup) -> int:
