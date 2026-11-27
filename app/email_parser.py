@@ -14,6 +14,9 @@ from app.security import defang_ioc, normalize_target, printable
 EXECUTABLE_SUFFIXES = {"exe", "scr", "com", "lnk", "bat", "cmd", "msi", "ps1", "vbs", "js", "wsf", "hta"}
 DOCUMENT_SUFFIXES = {"pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "txt", "jpg", "jpeg", "png"}
 URL_PATTERN = re.compile(r"https?://[^\s'\"<>)\]]+", re.I)
+ARCHIVE_SUFFIXES = {"zip", "rar", "7z", "iso", "img"}
+DOCUMENT_LURE = re.compile(r"\b(?:invoice|payment|payroll|statement|receipt)\b", re.I)
+URGENCY = re.compile(r"\b(?:urgent|immediate|overdue|today|past due)\b", re.I)
 
 
 def extract_address(msg, field: str) -> tuple[str, str]:
@@ -44,6 +47,10 @@ def analyze_raw_email(raw_email: str) -> dict:
                 if len(extensions) >= 2 and extensions[-1] in EXECUTABLE_SUFFIXES:
                     double = len(extensions) >= 3 and extensions[-2] in DOCUMENT_SUFFIXES
                     attachment_rules.add("EMAIL_DOUBLE_EXTENSION" if double else "EMAIL_ACTIVE_ATTACHMENT")
+                if len(extensions) >= 2 and extensions[-1] in ARCHIVE_SUFFIXES and DOCUMENT_LURE.search(subject) and URGENCY.search(subject):
+                    attachment_rules.add("EMAIL_ARCHIVE_LURE")
+                if any(control in filename for control in "\u202d\u202e"):
+                    attachment_rules.add("EMAIL_BIDI_FILENAME")
             attachments.append(printable(filename, 120))
             continue
         if part.get_content_type() not in {"text/plain", "text/html"}:

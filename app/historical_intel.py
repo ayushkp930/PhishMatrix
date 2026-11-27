@@ -8,8 +8,10 @@ from urllib.parse import urlsplit, urlunsplit
 INDEX_PATH = Path(__file__).with_name("kaggle_history.bin")
 SOURCE = "Kaggle · Malicious URLs dataset (2021 snapshot)"
 LABELS = {1: "phishing", 2: "malware", 4: "defacement"}
+BENIGN = 8
 KEY_BYTES = 16
 RECORD_BYTES = KEY_BYTES + 1
+MAX_INDEX_BYTES = 12 * 1024 * 1024
 
 
 def url_digest(url: str, *, unspecified_scheme: bool = False) -> bytes:
@@ -22,8 +24,8 @@ def url_digest(url: str, *, unspecified_scheme: bool = False) -> bytes:
 @lru_cache(maxsize=1)
 def read_index() -> bytes:
     with INDEX_PATH.open("rb") as stream:
-        data = stream.read(5 * 1024 * 1024 + 1)
-    if not data or len(data) % RECORD_BYTES or len(data) > 5 * 1024 * 1024:
+        data = stream.read(MAX_INDEX_BYTES + 1)
+    if not data or len(data) % RECORD_BYTES or len(data) > MAX_INDEX_BYTES:
         raise ValueError("Invalid historical IOC index.")
     return data
 
@@ -50,4 +52,8 @@ def historical_url_lookup(url: str) -> dict:
         return {"status": "Unavailable", "scope": "url", "labels": []}
     flags = label_mask(data, url_digest(url)) | label_mask(data, url_digest(url, unspecified_scheme=True))
     labels = [name for mask, name in LABELS.items() if flags & mask]
+    if flags & BENIGN:
+        if labels:
+            return {"status": "Conflicting archive labels", "scope": "url", "labels": [*labels, "benign"]}
+        return {"status": "Archived benign match", "scope": "url", "labels": ["benign"]}
     return {"status": "Historical match" if labels else "No historical match", "scope": "url", "labels": labels}
