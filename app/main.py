@@ -12,10 +12,11 @@ import httpx
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse
+from fastapi.responses import Response, FileResponse, JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, StringConstraints
 
+from app.engines.rule_pack import build_pack
 from app.engines.soc_generator import case_exports
 from app.engines.legacy_intel import malshare_lookup
 from app.email_parser import analyze_raw_email
@@ -48,6 +49,7 @@ app.mount("/static", StaticFiles(directory=STATIC), name="static")
 
 
 class ScanRequest(BaseModel):
+    offline: bool = False
     url: URL
 
 
@@ -67,6 +69,7 @@ class HtmlScanRequest(BaseModel):
 
 
 class BulkScanRequest(BaseModel):
+    offline: bool = False
     urls: Targets | None = None
     indicators: Targets | None = None
     targets: Targets | None = None
@@ -101,6 +104,13 @@ async def detection_catalogue():
     return {"ruleset_version": VERSION, "rules": catalogue()}
 
 
+@app.get("/api/v1/rules/pack.zip")
+async def detection_pack():
+    return Response(build_pack(), media_type="application/zip", headers={
+        "Content-Disposition": f'attachment; filename="PhishMatrix-rules-{VERSION}.zip"',
+    })
+
+
 @app.get("/admin")
 @app.get("/.env")
 @app.get("/wp-admin")
@@ -110,7 +120,7 @@ async def decoy_honeypot_routes():
     raise HoneypotTrapTriggered("decoy route probe", "")
 
 
-async def run_scan(request: Request, url: str) -> dict:
+async def run_scan(request: Request, url: str, offline: bool = False) -> dict:
     state = request.app.state
     loop = asyncio.get_running_loop()
     if getattr(state, "scan_loop", None) is not loop:
@@ -123,7 +133,7 @@ async def run_scan(request: Request, url: str) -> dict:
         raise HTTPException(status_code=503, detail="Scan workers are busy. Retry shortly.") from None
     try:
         async with asyncio.timeout(21):
-            return await investigate_target(url)
+            return await investigate_target(url, offline=offline)
     except HoneypotTrapTriggered:
         raise
     except ValueError:
@@ -136,7 +146,7 @@ async def run_scan(request: Request, url: str) -> dict:
 
 @app.post("/api/v1/scan")
 async def api_scan_url(req: ScanRequest, request: Request):
-    return await run_scan(request, req.url)
+    return await run_scan(request, req.url, req.offline)
 
 
 @app.post("/api/v1/hash-lookup")
@@ -194,7 +204,7 @@ async def api_bulk_scan(req: BulkScanRequest, request: Request):
 
     async def scan_item(index: int, url: str) -> dict:
         try:
-            result = await run_scan(request, url)
+            result = await run_scan(request, url, req.offline)
             return {
                 "position": index,
                 "domain": result["target"]["domain"],
@@ -217,7 +227,7 @@ async def api_bulk_scan(req: BulkScanRequest, request: Request):
     return {
         "kind": "bulk", "case_id": str(uuid4()), "timestamp": datetime.now(timezone.utc).isoformat(),
         "count": len(results), "results": results,
-        "scan_metadata": {"mode": "passive", "scan_duration_ms": round((time.monotonic() - started) * 1000)},
+        "scan_metadata": {"mode": "offline" if req.offline else "passive", "scan_duration_ms": round((time.monotonic() - started) * 1000)},
     }
 
 
@@ -244,4 +254,4 @@ async def kali_terminal_cli(request: Request, url: Annotated[str, Query(min_leng
 
 @app.post("/cli", response_class=PlainTextResponse)
 async def terminal_scan(req: ScanRequest, request: Request):
-    return cli_report(await run_scan(request, req.url))
+    return cli_report(await run_scan(request, req.url, req.offline))
