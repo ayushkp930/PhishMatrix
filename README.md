@@ -1,4 +1,4 @@
-# PhishMatrix 7.4 · Investigation Console
+# PhishMatrix 7.5 · Investigation Console
 
 PhishMatrix is a FastAPI phishing triage tool for URLs, domains, IPs, submitted email and inert HTML samples. Each verdict includes the contributing detection rules and the status of the sources queried. The browser session can export case JSON with analyst notes and disposition. Individual investigations export a timestamped SIEM event with the same case ID as the report.
 
@@ -122,3 +122,16 @@ Built by [Ayush Kumar Patel](https://github.com/ayushkp930). MIT license.
 Install the validation tools with `python -m pip install -r requirements-test.txt`, then run `python -m pytest -q`. The suite compiles YARA and runs Sigma DNS queries against synthetic telemetry. Windows DNS and process hash hunts require the matching log sources and field mappings. An indicator match identifies a file or event for investigation.
 
 The Sigma findings template targets structured PhishMatrix triage events. The exact digest for submitted HTML or email applies to its UTF-8 text, including its line endings. The hostname YARA rule searches ASCII and UTF-16LE text. Bulk reports summarize the individual inputs.
+
+
+## Offline triage and behavior hunts
+
+Select **Analyze offline with local evidence only** for a URL or bulk investigation. API clients can send `"offline": true` to the scan or bulk-scan endpoint. This mode runs local URL checks and available indicator indexes without DNS, registration, AI or live reputation calls. HTML and email analysis examines submitted text without opening links or executing scripts. In passive mode, an unavailable enrichment source leaves the local findings available.
+
+Download `/api/v1/rules/pack.zip` for 12 Sigma rules and 6 YARA text hunts. Sigma consumers need the exported structured boolean fields under `phishmatrix.findings`. YARA targets ASCII-compatible HTML or MIME text up to 1 MiB. Raw-text matches require review because example code and quoted messages can contain the same markers. Running the pack is optional. The server uses the existing Python parser libraries for its own behavioral analysis.
+
+### Precision and coverage checks
+
+The 14 targeted regression cases in `test_offline_precision.py` contain eight benign examples and six review-worthy examples. Version 7.4 flagged seven of the benign examples and five of the review cases. Version 7.5 flagged zero of the benign examples and all six review cases. These are development fixtures.
+
+A separate URL-only check used the 10,000 unique URLs with the lowest SHA-256 of the URL text in each class of the UCI PhiUSIIL corpus. Both versions used local URL rules and the bundled historical index. Among 10,000 labeled legitimate URLs, both versions flagged zero. Among 9,984 supported labeled phishing URLs, both flagged 41 (0.41% recall). Sixteen unsupported phishing inputs were excluded. An inconclusive result counted as a missed detection for phishing inputs. This snapshot measures URL-only coverage. Submitted page behavior and live reputation need separate evaluation. [UCI dataset](https://archive.ics.uci.edu/dataset/967)
