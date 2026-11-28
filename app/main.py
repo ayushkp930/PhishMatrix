@@ -20,6 +20,7 @@ from pydantic import BaseModel, Field, StringConstraints
 from app.engines.rule_pack import build_pack
 from app.engines.soc_generator import case_exports
 from app.engines.legacy_intel import malshare_lookup
+from app.email_policy import email_catalogue
 from app.email_parser import analyze_raw_email
 from app.email_report import build_email_pdf
 from app.middleware import WorkbenchMiddleware
@@ -104,7 +105,7 @@ async def serve_ui():
 
 @app.get("/api/v1/rules")
 async def detection_catalogue():
-    return {"ruleset_version": VERSION, "rules": catalogue()}
+    return {"ruleset_version": VERSION, "rules": catalogue() + email_catalogue()}
 
 
 @app.get("/api/v1/rules/pack.zip")
