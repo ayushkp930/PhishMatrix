@@ -20,6 +20,34 @@ ARCHIVE_SUFFIXES = {"zip", "rar", "7z", "iso", "img"}
 DOCUMENT_LURE = re.compile(r"\b(?:invoice|payment|payroll|statement|receipt)\b", re.I)
 URGENCY = re.compile(r"\b(?:urgent|immediate|overdue|today|past due)\b", re.I)
 IMPERSONATION_RULES = {"BRAND_CONFUSABLE", "URL_BRAND_SUBDOMAIN", "URL_SHARED_TENANT_LURE"}
+CREDENTIAL_EXPIRY = re.compile(
+    r"\b(?:password|passcode)s?\s+(?:(?:will|is about to)\s+)?expir(?:e|es|ing)\b"
+    r"|\baccount\s+will\s+be\s+(?:suspended|disabled|locked)\b", re.I,
+)
+ACTION_PRESSURE = re.compile(r"\b(?:urgent|action required|act now|immediate action|final notice)\b", re.I)
+SHORT_DEADLINE = re.compile(r"\b(?:in|within)\s+(?:the next\s+)?(\d{1,3})\s*(hours?|hrs?|minutes?|mins?)\b", re.I)
+CREDENTIAL_REPLY = re.compile(
+    r"^(?:please\s+)?(?:reply\s+(?:to (?:this (?:email|message)|us)\s+)?with|send\s+us|email\s+us)"
+    r"\s+your\s+(?:(?:current|login)\s+)?(?:password|one[- ]time (?:pass)?code|otp|verification code)"
+    r"(?=\s*(?:$|[.!?,;]|(?:to|for|within)\b))", re.I,
+)
+
+
+def urgent_credential_deadline(text):
+    if not CREDENTIAL_EXPIRY.search(text) or not ACTION_PRESSURE.search(text):
+        return False
+    return any(0 < int(value) <= (12 if unit.lower().startswith("h") else 720)
+               for value, unit in SHORT_DEADLINE.findall(text))
+
+
+def requests_credential_reply(text):
+    for line in text.splitlines():
+        line = line.strip()
+        if re.fullmatch(r"(?:on .+ wrote:|-+\s*(?:forwarded message|original message)\s*-+)", line, re.I):
+            break
+        if not line.startswith(">") and CREDENTIAL_REPLY.match(line):
+            return True
+    return False
 
 
 def message_parts(message):
@@ -52,6 +80,8 @@ def analyze_raw_email(raw_email: str) -> dict:
     links = {}
     display_mismatches = 0
     embedded_behaviors = set()
+    credential_deadline = urgent_credential_deadline(subject)
+    credential_reply = False
     attachments = []
     attachment_rules = set()
     for part in message_parts(msg):
@@ -89,8 +119,13 @@ def analyze_raw_email(raw_email: str) -> dict:
                 template.extract()
             for anchor in soup.find_all("a", href=True, limit=50):
                 links.setdefault(str(anchor["href"]), None)
+            for quote in soup.find_all("blockquote"):
+                quote.extract()
+            prose = "\n".join(block.get_text(" ", strip=True) for block in soup.find_all(["p", "li"])) or soup.get_text(" ", strip=True)
         else:
             links.update(dict.fromkeys(URL_PATTERN.findall(text)[:50]))
+            prose = text
+        credential_reply = credential_reply or requests_credential_reply(prose)
 
     safe_links = []
     link_rules = set()
@@ -116,6 +151,12 @@ def analyze_raw_email(raw_email: str) -> dict:
         for rule in sorted(attachment_rules)
     ]
     findings.extend(finding(rule, "Submitted email HTML", "Observed in the inert HTML MIME body.") for rule in sorted(embedded_behaviors))
+    if credential_deadline:
+        findings.append(finding("EMAIL_CREDENTIAL_DEADLINE", "Email subject",
+                                "The subject combines a short deadline, an account or credential warning, and pressure to act."))
+    if credential_reply:
+        findings.append(finding("EMAIL_CREDENTIAL_REPLY", "Email body",
+                                "The message directly asks the recipient to disclose a password or code in a reply or email."))
     if "EMAIL_ARCHIVED_THREAT" in link_rules:
         findings.append(finding("EMAIL_ARCHIVED_THREAT", "Local archive", "An exact email link matches a historical phishing, malware or defacement label. Current activity is unverified."))
     if "EMAIL_LINK_IMPERSONATION" in link_rules:
@@ -131,6 +172,9 @@ def analyze_raw_email(raw_email: str) -> dict:
     if any(token.lower() in {"fail", "softfail"} for values in claims.values() for token in values):
         findings.append(finding("EMAIL_AUTH_CLAIM", "Submitted header", "Verify this claim in your trusted mail-gateway logs."))
     result = assess(findings, coverage_sufficient=False)
+    recommendations = ["Verify sender authentication in gateway logs and review links in an approved isolation environment."]
+    if credential_deadline or credential_reply:
+        recommendations.insert(0, "Verify any password or account deadline independently through your usual IT portal or help desk.")
     return {
         **result,
         "email_risk_score": result["risk_score"],
@@ -143,5 +187,5 @@ def analyze_raw_email(raw_email: str) -> dict:
         "extracted_urls": list(dict.fromkeys(safe_links)),
         "attachments": attachments[:12],
         "alerts": result["triggers"],
-        "recommendations": ["Verify sender authentication in gateway logs and review links in an approved isolation environment."],
+        "recommendations": recommendations,
     }
