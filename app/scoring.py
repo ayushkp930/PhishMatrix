@@ -2,7 +2,7 @@
 
 from dataclasses import asdict, dataclass
 
-VERSION = "7.8"
+VERSION = "7.8.1"
 RULES = {
     "NRD_24H": ("New domain · under 24 hours", "registration", 40, "T1583.001"),
     "NRD_30D": ("New domain · up to 30 days", "registration", 35, "T1583.001"),
@@ -46,6 +46,8 @@ RULES = {
     "EMAIL_ARCHIVED_THREAT": ("Email link matches an archived threat URL", "email", 30, "T1566.002"),
     "EMAIL_LINK_IMPERSONATION": ("Email link points to a lookalike or deceptive brand host", "email", 28, "T1566.002"),
     "EMAIL_ATTACHED_MESSAGE": ("Separate email attached to the message", "email", 0, None),
+    "EMAIL_CREDENTIAL_DEADLINE": ("Urgent credential or account deadline", "email", 20, "T1566"),
+    "EMAIL_CREDENTIAL_REPLY": ("Message asks the recipient to send a password or one-time code", "email", 35, "T1566"),
     "EMAIL_ENVELOPE": ("From differs from envelope domain", "email", 0, None),
     "EMAIL_LINK_MISMATCH": ("Email link label differs from destination", "email", 28, "T1566.002"),
     "EMAIL_AUTH_CLAIM": ("Authentication-Results contains a failure claim", "email", 0, None),
