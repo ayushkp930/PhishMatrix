@@ -120,6 +120,33 @@ def test_email_report_is_opt_in_and_keeps_raw_message_out():
     assert b64decode(response.json()["report_pdf"], validate=True).startswith(b"%PDF-")
 
 
+@pytest.mark.parametrize(("subject", "score"), [
+    ("URGENT: Action Required - Your Email Password Expires in 2 Hours", 20),
+    ("Password expires in 2 days", 0),
+    ("Password expires in 2 hours", 0),
+    ("URGENT: Your meeting starts in 2 hours", 0),
+    ("Final notice: your account will be suspended within 30 minutes", 20),
+])
+def test_credential_deadline_is_below_alert_threshold(subject, score):
+    raw = f"From: IT Support Desk <support@corp-security-update.com>\nSubject: {subject}\n\nReminder."
+    result = analyze_raw_email(raw)
+    assert (result["verdict"], result["risk_score"]) == ("INCONCLUSIVE", score)
+    assert bool(result["evidence"]) == bool(score)
+
+
+@pytest.mark.parametrize(("mime", "body", "matched"), [
+    ("text/plain", "Please reply to this email with your one-time code.", True),
+    ("text/plain", "Never reply with your password.", False),
+    ("text/plain", "Please send us your password reset request.", False),
+    ("text/plain", "Previous message follows.\nOn Wednesday Dana wrote:\nReply with your password.", False),
+    ("text/html", "<p>Send us your password.</p>", True),
+    ("text/html", "<blockquote><p>Send us your password.</p></blockquote>", False),
+])
+def test_credential_reply_requires_a_direct_unquoted_request(mime, body, matched):
+    result = analyze_raw_email(f"From: notice@example.org\nContent-Type: {mime}\n\n{body}")
+    assert result["risk_score"] == (35 if matched else 0)
+
+
 def test_recent_urlscan_positive_survives_without_exact_negative_coverage(monkeypatch):
     async def providers(*args):
         return {"webrisk": {"status": "Access denied", "scope": "url"},

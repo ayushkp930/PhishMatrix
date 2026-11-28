@@ -1,6 +1,8 @@
-# PhishMatrix 7.8 · Email Investigation Console
+# PhishMatrix 7.8.1 · Email Investigation Console
 
 The dashboard accepts a pasted raw message or a UTF-8/ASCII `.eml` file up to 50 KB. Run the scan to export case JSON, a static PDF summary or a SIEM event. Existing URL, HTML, bulk and hash API routes remain available. A different Reply-To domain is contextual unless the email also contains a deceptive or listed link. An attached email is reported as a separate artifact. Scan it separately to inspect its contents.
+
+A password expiry or account suspension subject with a short deadline and pressure to act scores 20, below the alert threshold. A direct request in the message body to send a password or code scores 35. The body rule ignores common quoted-text markers and HTML blockquotes. These narrow rules currently match English wording.
 
 PhishMatrix is a FastAPI phishing triage tool for URLs, domains, IPs, submitted email and inert HTML samples. Each verdict includes the contributing detection rules and the status of the sources queried. The browser session can export case JSON with analyst notes and disposition. Individual investigations export a timestamped SIEM event with the same case ID as the report.
 
