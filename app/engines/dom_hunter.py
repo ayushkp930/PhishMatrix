@@ -45,12 +45,18 @@ def control_enabled(control):
     return True
 
 
-def inspect_html(html: str, context_url: str | None = None) -> tuple[dict, list[Finding]]:
+def inspect_html(html: str, context_url: str | None = None, *, include_elements=False) -> tuple[dict, list[Finding]]:
     soup = BeautifulSoup(html, "html.parser")
     for inert in soup.find_all("template"):
         inert.extract()
     page_title = printable(soup.title.get_text(" ", strip=True), 120) if soup.title else None
     findings = []
+    elements = {}
+
+    def capture(key, snippet):
+        if include_elements:
+            elements.setdefault(key, str(snippet).split("?")[0].split("#")[0][:240])
+
     matches = link_mismatches(soup)
     if matches:
         findings.append(finding("HTML_LINK_MISMATCH", "Submitted HTML", f"{matches} URL label(s) point to a different domain."))
@@ -71,6 +77,7 @@ def inspect_html(html: str, context_url: str | None = None) -> tuple[dict, list[
                 try:
                     target = urlsplit(urljoin(document_base, match[2].strip(" '\"")))
                     if target.hostname and target.scheme in {"http", "https"} and domain_key(target.hostname) != domain_key(context_host):
+                        capture("HTML_EXTERNAL_REFRESH", refresh.get("content"))
                         findings.append(finding("HTML_EXTERNAL_REFRESH", "Submitted HTML", "A rapid meta refresh names a different site."))
                         break
                 except ValueError:
@@ -96,6 +103,7 @@ def inspect_html(html: str, context_url: str | None = None) -> tuple[dict, list[
         if not passwords:
             if (method == "post" and action.scheme in {"http", "https"} and host and context_host
                     and domain_key(host) != domain_key(context_host)):
+                capture("HTML_OTP_CROSS_ORIGIN", form.get("action"))
                 findings.append(finding("HTML_OTP_CROSS_ORIGIN", "Submitted HTML", "A form with a one-time code field submits to a different site."))
             continue
         for button in form.find_all(["button", "input"], formaction=True, limit=50):
@@ -109,6 +117,7 @@ def inspect_html(html: str, context_url: str | None = None) -> tuple[dict, list[
                 if (context_host and override.scheme in {"http", "https"} and override.hostname
                         and domain_key(override.hostname) != domain_key(context_host)
                         and (not host or domain_key(override.hostname) != domain_key(host))):
+                    capture("HTML_SUBMIT_OVERRIDE", button.get("formaction"))
                     findings.append(finding("HTML_SUBMIT_OVERRIDE", "Submitted HTML", "A submit control routes the credential form to another site."))
                     break
             except ValueError:
@@ -116,21 +125,26 @@ def inspect_html(html: str, context_url: str | None = None) -> tuple[dict, list[
         if method == "dialog":
             continue
         if action.scheme == "mailto" and action.path and any(field.get("name") for field in passwords):
+            capture("HTML_PASSWORD_MAILTO", action.scheme + ":")
             findings.append(finding("HTML_PASSWORD_MAILTO", "Submitted HTML", "A form with a named password field opens an email destination on submission."))
         if not host or action.scheme not in {"http", "https"}:
             continue
         if method == "get" and any(field.get("name") for field in passwords):
+            capture("HTML_PASSWORD_QUERY", form.get("method"))
             findings.append(finding("HTML_PASSWORD_QUERY", "Submitted HTML", "The explicit GET method can expose a named password field in the URL."))
         target = domain_key(host)
         if (host == "api.telegram.org" and action.path.startswith("/bot")) or (
             host in {"discord.com", "discordapp.com"} and action.path.startswith("/api/webhooks/")
         ):
+            capture("HTML_WEBHOOK_FORM", action.hostname)
             findings.append(finding("HTML_WEBHOOK_FORM", "Submitted HTML", f"A password form references {target}. Endpoint data omitted."))
         elif context_host and target != domain_key(context_host):
             uses_foreign_base = bool(destination and not urlsplit(destination).netloc and base_tag)
             rule = "HTML_CREDENTIAL_FORM_REDIRECT" if uses_foreign_base else "HTML_CROSS_ORIGIN_FORM"
+            capture(rule, action.hostname)
             findings.append(finding(rule, "Submitted HTML", f"A password form submits to {target}."))
         if action.scheme == "http":
+            capture("HTML_INSECURE_PASSWORD", action.hostname)
             findings.append(finding("HTML_INSECURE_PASSWORD", "Submitted HTML", "The form destination uses unencrypted HTTP."))
     visible = soup.get_text(" ", strip=True)
     prompt = re.search(r"\b(?:win(?:dows)?\s*\+\s*r|paste\s+(?:the\s+)?command)\b", visible, re.I)
@@ -149,11 +163,13 @@ def inspect_html(html: str, context_url: str | None = None) -> tuple[dict, list[
                 continue
             literal = re.search(r"""navigator\.clipboard\.writeText\s*\(\s*['"`]\s*(?:powershell|pwsh|mshta|cmd)(?:\.exe)?\s""", script, re.I)
             if verification and literal:
+                capture("HTML_CLIPBOARD_EXEC", literal[0])
                 findings.append(finding("HTML_CLIPBOARD_EXEC", "Submitted HTML", "Verification language, run/paste instructions and a clipboard call containing a shell command co-occur."))
                 break
             context_only = True
         else:
             if context_only:
+                capture("HTML_CLIPBOARD_CONTEXT", prompt[0])
                 findings.append(finding("HTML_CLIPBOARD_CONTEXT", "Submitted HTML", "Clipboard and command cues require independent verification."))
     return {
         "page_title": page_title,
@@ -161,4 +177,5 @@ def inspect_html(html: str, context_url: str | None = None) -> tuple[dict, list[
         "has_password_form": has_password_form,
         "link_mismatches": matches,
         "network_activity": "None",
+        **({"matched_elements": elements} if include_elements else {}),
     }, findings

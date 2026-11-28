@@ -55,7 +55,7 @@ def test_review_decisions(kind, value, alert):
     else:
         evidence = inspect_html(value, "https://portal.example/login")[1] if kind == "html" else lexical_findings(*value)
         result = assess(evidence, coverage_sufficient=False)
-    assert (result["verdict"] in {"MALICIOUS", "SUSPICIOUS"}) == alert
+    assert (result["verdict"] in {"MALICIOUS", "SUSPICIOUS", "LIKELY_PHISHING", "HIGH_CONFIDENCE_PHISHING"}) == alert
 
 
 def test_offline_api_never_calls_external_sources(monkeypatch):
@@ -97,14 +97,14 @@ def test_newsletter_reply_routing_and_attached_email_stay_context_only():
     assert {item["rule_id"] for item in result["evidence"]} == {"EMAIL_REPLY_TO", "EMAIL_ATTACHED_MESSAGE"}
 
 
-def test_email_archive_and_reply_correlation_use_exact_link(monkeypatch):
+def test_email_archive_alone_with_routine_reply_routing_stays_low(monkeypatch):
     def history(url):
         return {"status": "Historical match" if url == "https://collector.example/record" else "No historical match"}
 
     monkeypatch.setattr("app.email_parser.historical_url_lookup", history)
     raw = "From: alerts@example.org\nReply-To: reply@collector.example\n\nhttps://collector.example/record"
     result = analyze_raw_email(raw)
-    assert (result["verdict"], result["risk_score"]) == ("SUSPICIOUS", 42)
+    assert (result["verdict"], result["risk_score"]) == ("LOW_RISK", 10)
     assert any(item["rule_id"] == "EMAIL_ARCHIVED_THREAT" for item in result["evidence"])
     assert analyze_raw_email(raw + "#another-page")["risk_score"] == 0
 
@@ -127,11 +127,11 @@ def test_email_report_is_opt_in_and_keeps_raw_message_out():
     ("URGENT: Your meeting starts in 2 hours", 0),
     ("Final notice: your account will be suspended within 30 minutes", 20),
 ])
-def test_credential_deadline_is_below_alert_threshold(subject, score):
+def test_credential_deadline_correlates_with_role_and_sender_domain(subject, score):
     raw = f"From: IT Support Desk <support@corp-security-update.com>\nSubject: {subject}\n\nReminder."
     result = analyze_raw_email(raw)
-    assert (result["verdict"], result["risk_score"]) == ("INCONCLUSIVE", score)
-    assert bool(result["evidence"]) == bool(score)
+    assert (result["verdict"], result["risk_score"]) == (("SUSPICIOUS", 44) if score else ("LOW_RISK", 0))
+    assert ("EMAIL_CREDENTIAL_DEADLINE" in {r["rule_id"] for r in result["evidence"]}) == bool(score)
 
 
 @pytest.mark.parametrize(("mime", "body", "matched"), [

@@ -1,8 +1,23 @@
-# PhishMatrix 7.8.1 · Email Investigation Console
+# PhishMatrix 7.9.0 · Email Investigation Console
 
-The dashboard accepts a pasted raw message or a UTF-8/ASCII `.eml` file up to 50 KB. Run the scan to export case JSON, a static PDF summary or a SIEM event. Existing URL, HTML, bulk and hash API routes remain available. A different Reply-To domain is contextual unless the email also contains a deceptive or listed link. An attached email is reported as a separate artifact. Scan it separately to inspect its contents.
+Paste a message or upload a UTF-8/ASCII `.eml` up to 50 KB. The dashboard, JSON, PDF and SIEM event use the same email score. Missing transport headers produce the scope **Partial headers analyzed (body-only mode)**. A low score describes the submitted evidence. It cannot establish sender identity or certify a message as safe.
 
-A password expiry or account suspension subject with a short deadline and pressure to act scores 20, below the alert threshold. A direct request in the message body to send a password or code scores 35. The body rule ignores common quoted-text markers and HTML blockquotes. These narrow rules currently match English wording.
+| Email score | Verdict |
+| --- | --- |
+| 0–19 | Low risk |
+| 20–49 | Suspicious |
+| 50–79 | Likely phishing |
+| 80–100 | High-confidence phishing |
+
+**Rule implementation.** [Email rule definitions, weights and caps](app/email_policy.py), [MIME and link inspection](app/email_parser.py), [payment and credential language](app/email_content.py), [identity and authentication](app/email_identity.py), [Unicode helpers](app/email_unicode.py), [inherited rule definitions](app/scoring.py), and [regression fixtures](test_email_forensics.py). Each finding includes its rule ID, severity, excerpt from the decoded part, analyst verification note and effective score contribution. Related signals have family caps. A single rule contributes once across MIME alternatives. Effective contributions sum to the displayed score. A critical homograph finding contributes 45 points before the overall cap.
+
+**Example results.** A body-only NEFT instruction with revised bank details scores 35. Adding a two-hour dispatch hold raises it to 53. An Accounts Payable display name using a free mailbox with that request scores 89. The HTML credential-entry fixture with misleading link text scores 82. The fixture for a routine invoice under existing payment terms scores zero. Language rules cover English requests and include Indian payment terminology. The analyzer can miss paraphrases or requests in other languages.
+
+**Identity and Unicode.** Set `PHISHMATRIX_ENTERPRISE_DOMAINS` to comma-separated enterprise domains to protect your organization alongside built-in brand and financial names. Domain comparisons respect DNS label boundaries and private suffixes. Hyphenated naming indicates resemblance only. The email scanner does not measure registration age. The scanner decodes IDNs, compares case-insensitive skeletons using the bundled Unicode 18.0 confusables mapping, and checks adjacent transpositions and one-edit variants of longer protected names. Reports preserve the decoded field, a visual target and codepoints for spoof findings. The PDF includes codepoint names where fonts may not display the glyph. [Unicode data license](app/UNICODE-LICENSE.txt).
+
+**Authentication and routing.** Pasted Authentication-Results fields are unverified claims. Known ESP routing with a claimed aligned DKIM pass is excluded for routine mail. Direct evidence of fraud still scores. A receiver-side integration can pass `trusted_authserv_id` to the Python analyzer only after sanitizing incoming headers at the gateway. The public HTTP endpoint accepts no trust override. A legitimate unsubscribe header and verified aligned authentication can dampen weak identity evidence. Bank changes still require independent vendor confirmation, including when sent from a compromised legitimate account.
+
+**Validation.** Run `python -m pytest -q` after installing `requirements-test.txt`. A local run over the February 2003 Apache SpamAssassin archives used the first two ham sets for tuning and held out easy_ham_2. At the 20-point alert threshold the held-out set produced one alert in 1,398 messages within the 50 KB limit. Two oversized messages were excluded. These historical ham sets do not measure current BEC recall or production precision.
 
 PhishMatrix is a FastAPI phishing triage tool for URLs, domains, IPs, submitted email and inert HTML samples. Each verdict includes the contributing detection rules and the status of the sources queried. The browser session can export case JSON with analyst notes and disposition. Individual investigations export a timestamped SIEM event with the same case ID as the report.
 

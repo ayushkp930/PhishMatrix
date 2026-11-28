@@ -8,6 +8,8 @@
         "includeFiles": [
           "static/**",
           "app/url_model.json",
+          "app/confusables-18.json",
+          "app/UNICODE-LICENSE.txt",
           "app/kaggle_history.bin"
         ],
         "excludeFiles": [

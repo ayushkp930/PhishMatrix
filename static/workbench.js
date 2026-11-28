@@ -14,9 +14,9 @@ const templateNames = {
   elastic_kql: 'Elastic KQL', crowdstrike_cql: 'CrowdStrike LogScale',
   wazuh_rule: 'Wazuh XML', suricata_rule: 'Suricata TLS', yara_rule: 'YARA · hostname in file text',
 };
-const tone = { CLEAN: 'positive', TRUSTED_ROOT: 'positive', LOW_SIGNAL: 'warning', SUSPICIOUS: 'warning', MALICIOUS: 'danger' };
+const tone = { LOW_RISK: "positive", LIKELY_PHISHING: "danger", HIGH_CONFIDENCE_PHISHING: "danger", CLEAN: 'positive', TRUSTED_ROOT: 'positive', LOW_SIGNAL: 'warning', SUSPICIOUS: 'warning', MALICIOUS: 'danger' };
 const labelVerdict = {
-  CLEAN: 'No match found', TRUSTED_ROOT: 'Known trusted domain', LOW_SIGNAL: 'Weak signals',
+  LOW_RISK: 'Low risk', LIKELY_PHISHING: 'Likely phishing', HIGH_CONFIDENCE_PHISHING: 'High-confidence phishing', CLEAN: 'No match found', TRUSTED_ROOT: 'Known trusted domain', LOW_SIGNAL: 'Weak signals',
   SUSPICIOUS: 'Suspicious', INCONCLUSIVE: 'Inconclusive', MALICIOUS: 'Malicious',
   BLOCKED: 'Blocked', UNAVAILABLE: 'Unavailable',
 };
@@ -59,12 +59,12 @@ function riskPanel(result) {
   const topFinding = result?.evidence?.find((entry) => entry.points > 0);
   byId('risk-reason').textContent = !result ? 'Run an investigation to see the evidence.' :
     verdict === 'INCONCLUSIVE' ? (score ? 'Findings below the alert threshold. Review the evidence.' : 'The static checks returned no risk points.') :
-      topFinding ? `Top finding: ${topFinding.label}.` : 'Review the evidence below.';
+      topFinding ? `Top finding: ${topFinding.label}.` : 'No scored indicators in the submitted content.';
   byId('case-id').textContent = result?.case_id?.slice(0, 8) || '—';
   byId('link-count').textContent = result?.extracted_urls.length ?? '—';
   byId('signal-count').textContent = result?.evidence.length ?? '—';
   byId('duration').textContent = result ? `${result.scan_metadata.scan_duration_ms} ms` : '—';
-  byId('scan-mode').textContent = result ? 'Static email inspection' : 'Latest investigation';
+  byId('scan-mode').textContent = result ? result.analysis_scope : 'Latest investigation';
 }
 
 function renderEvidence(result) {
@@ -73,12 +73,16 @@ function renderEvidence(result) {
   const rows = result?.evidence || [];
   const filter = byId('filter-evidence').value;
   byId('evidence-tools').hidden = !rows.length;
-  const visibleRows = rows.filter((row) => filter === 'all' || (filter === 'scored' ? row.points > 0 : row.points === 0));
+  const visibleRows = rows.filter((row) => filter === 'all' || (filter === 'scored' ? row.score_contribution > 0 : row.score_contribution === 0));
   for (const evidence of visibleRows) {
     const label = node('div');
     label.append(node('strong', evidence.label), node('small', evidence.detail, 'detail'), node('small', `${evidence.rule_id} · ${evidence.source}`));
+    const excerpt = (evidence.matched_evidence || '').replace(/[\u00ad\u200b-\u200d\u202a-\u202e\u2066-\u2069]/gu,
+      c => '[U+' + c.codePointAt(0).toString(16).toUpperCase().padStart(4, '0') + ']');
+    label.append(node('small', excerpt), node('small', [evidence.severity, evidence.visual_target, ...(evidence.codepoints || [])].filter(Boolean).join(' · ')),
+      node('small', evidence.false_positive_note));
     const item = node('li');
-    item.append(label, node('span', evidence.points ? `Weight ${evidence.points}` : 'Context', 'points'));
+    item.append(label, node('span', evidence.score_contribution ? `+${evidence.score_contribution}` : 'Context', 'points'));
     list.append(item);
   }
   byId('evidence-total').textContent = `${rows.length} findings`;

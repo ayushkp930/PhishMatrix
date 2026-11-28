@@ -1,6 +1,7 @@
 """Build a static, printable case summary from an email investigation."""
 
 from io import BytesIO
+from app.email_policy import visible_snippet
 from xml.sax.saxutils import escape
 
 from reportlab.lib import colors
@@ -19,7 +20,7 @@ def build_email_pdf(case: dict) -> bytes:
     styles["BodyText"].splitLongWords = True
 
     def line(text, style="BodyText"):
-        return Paragraph(escape(str(text)), styles[style])
+        return Paragraph(escape(visible_snippet(str(text))), styles[style])
 
     def section(label, values):
         if values:
@@ -27,15 +28,17 @@ def build_email_pdf(case: dict) -> bytes:
         return []
 
     content = [line("Email investigation", "Title"),
-               line(f"{case['verdict'].title()}  |  Evidence score {case['risk_score']}/100", "Heading2"),
+               line(f"{case['verdict'].replace('_', ' ').title()}  |  Evidence score {case['risk_score']}/100", "Heading2"),
                line(f"Case {case['case_id']}"), line(f"Generated {case['timestamp']}"), Spacer(1, 12)]
     content += section("Message details", [f"Subject: {case['subject']}", f"From: {case['from'] or 'Unavailable'}",
                                          f"Reply-To: {case['reply_to'] or 'Unavailable'}"])
     content.append(line("Evidence", "Heading2"))
     for evidence in case["evidence"]:
-        weight = f"Weight {evidence['points']}" if evidence["points"] else "Context"
+        weight = f"+{evidence['score_contribution']}" if evidence["score_contribution"] else "Context"
         content.append(KeepTogether([line(f"{evidence['label']} ({weight})", "Heading3"),
-                                     line(f"{evidence['rule_id']} | {evidence['detail']}")]))
+                                     line(f"{evidence['severity']} | {evidence['rule_id']} | {evidence['detail']}"),
+                                     line(evidence['matched_evidence']), line(' '.join(evidence.get('codepoints', []))),
+                                     line(evidence['false_positive_note'])]))
     if not case["evidence"]:
         content.append(line("The local checks returned no findings."))
     content += section("Score contributions", [f"{label.replace('_', ' ').title()}: {points}"
@@ -43,7 +46,7 @@ def build_email_pdf(case: dict) -> bytes:
     content += section("Extracted links", case["extracted_urls"])
     content += section("Attachment names", case["attachments"])
     content += section("Recommended checks", case["recommendations"])
-    content += section("Analysis scope", ["Static email and MIME inspection. Sender authentication claims require gateway verification."])
+    content += section("Analysis scope", [case["analysis_scope"], "Static email and MIME inspection. Sender authentication claims require gateway verification."])
 
     def footer(canvas, doc):
         canvas.setFillColor(colors.HexColor("#38564f"))
