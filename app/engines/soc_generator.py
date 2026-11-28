@@ -74,7 +74,7 @@ def case_exports(case_id, timestamp, result, kind, *, host=None, digest=None):
     rule_ids = sorted({item["rule_id"] for item in result["evidence"]})
     event = {
         "@timestamp": timestamp,
-        "event": {"id": case_id, "kind": "alert" if verdict in {"MALICIOUS", "SUSPICIOUS"} else "event",
+        "event": {"id": case_id, "kind": "alert" if verdict in {"MALICIOUS", "SUSPICIOUS", "LIKELY_PHISHING", "HIGH_CONFIDENCE_PHISHING"} else "event",
                   "category": ["threat"], "action": operation, "risk_score": result["risk_score"]},
         "observer": {"product": "PhishMatrix", "version": VERSION},
         "phishmatrix": {"verdict": verdict, "rule_ids": rule_ids, "findings": {key: True for key in rule_ids}, "artifact_type": kind},
@@ -100,7 +100,7 @@ def case_exports(case_id, timestamp, result, kind, *, host=None, digest=None):
                 f"Process image hash {digest}", "Windows process creation with configured image hashing.",
                 {"product": "windows", "category": "process_creation"}, {"Hashes|contains": f"{algorithm.upper()}={digest}"},
             )
-    scored = sorted({item["rule_id"] for item in result["evidence"] if item["points"]})
+    scored = sorted({item["rule_id"] for item in result["evidence"] if item.get("score_contribution", item["points"])})
     if scored:
         rules["sigma_case"] = sigma(
             f"PhishMatrix {kind} triage with {len(scored)} scored finding(s)",
